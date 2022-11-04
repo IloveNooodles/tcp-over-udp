@@ -1,6 +1,6 @@
 import struct
 
-from constant import ACK_FLAG, FIN_FLAG, SYN_FLAG
+from .constant import ACK_FLAG, FIN_FLAG, SYN_FLAG
 
 
 class SegmentFlag:
