@@ -29,13 +29,13 @@ class Segment:
     def __str__(self):
         # Optional, override this method for easier print(segmentA)
         output = ""
-        output += f"{'Sequence number':24} | {self.seq}\n"
-        output += f"{'Acknowledgement number':24} | {self.ack}\n"
-        output += f"{'FLAG SYN':24} | {self.flag.syn >> 1}\n"
-        output += f"{'FLAG ACK':24} | {self.flag.ack >> 4}\n"
-        output += f"{'FLAG FIN':24} | {self.flag.fin}\n"
+        output += f"{'SeqNum':12} | {self.seq}\n"
+        output += f"{'AckNum':12} | {self.ack}\n"
+        output += f"{'FlagSYN':12} | {self.flag.syn >> 1}\n"
+        output += f"{'FlagACK':12} | {self.flag.ack >> 4}\n"
+        output += f"{'FlagFIN':12} | {self.flag.fin}\n"
         output += f"{'Checksum':24} | {self.checksum}\n"
-        output += f"{'Data Size':24} | {len(self.data)}\n"
+        output += f"{'MsgSize':24} | {len(self.data)}\n"
         return output
 
     def __calculate_checksum(self) -> int:
