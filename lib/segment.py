@@ -1,7 +1,7 @@
 import struct
 
-from constant import ACK_FLAG, FIN_FLAG, SYN_FLAG
-from crc32 import CRC32
+from .constant import ACK_FLAG, FIN_FLAG, SYN_FLAG
+from .crc32 import CRC32
 
 
 class SegmentFlag:
