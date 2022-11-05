@@ -1,6 +1,6 @@
 import binascii
 
-from constant import CRC_INIT, CRC_POLYNOM
+from .constant import CRC_INIT, CRC_POLYNOM
 
 """
 CRC16 Polynomial 
