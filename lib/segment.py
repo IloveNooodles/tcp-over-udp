@@ -1,7 +1,7 @@
 import struct
 
 from .constant import ACK_FLAG, FIN_FLAG, SYN_FLAG
-from .crc32 import CRC32
+from .crc16 import CRC16
 
 
 class SegmentFlag:
@@ -13,7 +13,7 @@ class SegmentFlag:
 
     def get_flag_bytes(self) -> bytes:
         # Convert this object to flag in byte form
-        return struct.pack("B", self.syn | self.ack | self.fin)       
+        return struct.pack("B", self.syn | self.ack | self.fin)
 
 
 class Segment:
@@ -39,7 +39,7 @@ class Segment:
         return output
 
     def __calculate_checksum(self) -> int:
-        checksum = CRC32(self.data)
+        checksum = CRC16(self.data)
         return checksum.calculate()
 
     # -- Setter --
