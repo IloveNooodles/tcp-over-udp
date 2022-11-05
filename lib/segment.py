@@ -1,64 +1,96 @@
 import struct
 
-from .constant import ACK_FLAG, FIN_FLAG, SYN_FLAG
+from constant import ACK_FLAG, FIN_FLAG, SYN_FLAG
+from crc32 import CRC32
 
 
 class SegmentFlag:
     def __init__(self, flag: bytes):
         # Init flag variable from flag byte
-        pass
+        self.syn = flag & SYN_FLAG
+        self.ack = flag & ACK_FLAG
+        self.fin = flag & FIN_FLAG
 
     def get_flag_bytes(self) -> bytes:
         # Convert this object to flag in byte form
-        pass
+        return struct.pack("B", self.syn | self.ack | self.fin)       
 
 
 class Segment:
     # -- Internal Function --
     def __init__(self):
         # Initalize segment
-        pass
+        self.seq = 0
+        self.ack = 0
+        self.flag = SegmentFlag(0b0)
+        self.checksum = 0
+        self.data = b""
 
     def __str__(self):
         # Optional, override this method for easier print(segmentA)
         output = ""
-        output += f"{'Sequence number':24} | {self.sequence}\n"
+        output += f"{'Sequence number':24} | {self.seq}\n"
+        output += f"{'Acknowledgement number':24} | {self.ack}\n"
+        output += f"{'FLAG SYN':24} | {self.flag.syn >> 1}\n"
+        output += f"{'FLAG ACK':24} | {self.flag.ack >> 4}\n"
+        output += f"{'FLAG FIN':24} | {self.flag.fin}\n"
+        output += f"{'Checksum':24} | {self.checksum}\n"
+        output += f"{'Data Size':24} | {len(self.data)}\n"
         return output
 
     def __calculate_checksum(self) -> int:
-        # Calculate checksum here, return checksum result
-        pass
+        checksum = CRC32(self.data)
+        return checksum.calculate()
 
     # -- Setter --
     def set_header(self, header: dict):
-        pass
+        self.seq = header["seq"]
+        self.ack = header["ack"]
 
     def set_payload(self, payload: bytes):
-        pass
+        self.data = payload
 
     def set_flag(self, flag_list: list):
-        pass
+        new_flag = 0b0
+        for flag in flag_list:
+            if flag == "SYN":
+                new_flag |= SYN_FLAG
+            elif flag == "ACK":
+                new_flag |= ACK_FLAG
+            elif flag == "FIN":
+                new_flag |= FIN_FLAG
+        self.flag = SegmentFlag(new_flag)
 
     # -- Getter --
     def get_flag(self) -> SegmentFlag:
-        pass
+        return self.flag
 
     def get_header(self) -> dict:
-        pass
+        return {"seq": self.seq, "ack": self.ack}
 
     def get_payload(self) -> bytes:
-        pass
+        return self.data
 
     # -- Marshalling --
     def set_from_bytes(self, src: bytes):
         # From pure bytes, unpack() and set into python variable
-        pass
+        self.seq = struct.unpack("I", src[0:4])[0]
+        self.ack = struct.unpack("I", src[4:8])[0]
+        self.flag = SegmentFlag(struct.unpack("B", src[8:9])[0])
+        self.checksum = struct.unpack("H", src[10:12])[0]
+        self.data = src[12:]
 
     def get_bytes(self) -> bytes:
         # Convert this object to pure bytes
-        pass
+        res = b""
+        res += struct.pack("II", self.seq, self.ack)
+        res += self.flag.get_flag_bytes()
+        res += struct.pack("x")
+        res += struct.pack("H", self.checksum)
+        res += self.data
+        return res
 
     # -- Checksum --
     def valid_checksum(self) -> bool:
         # Use __calculate_checksum() and check integrity of this object
-        pass
+        return self.__calculate_checksum() == self.checksum
