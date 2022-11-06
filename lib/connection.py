@@ -1,4 +1,5 @@
 import socket
+from typing import Tuple
 
 from .constant import DEFAULT_IP, DEFAULT_PORT, SEGMENT_SIZE, TIMEOUT
 from .segment import Segment
@@ -20,7 +21,7 @@ class Connection:
         else:
             print(f"[!] Client started at {ip}:{port}")
 
-    def send_data(self, msg: Segment, dest: (str, int)):
+    def send_data(self, msg: Segment, dest: Tuple[str, int]):
         # Send single segment into destination
         self.socket.sendto(msg, dest)
 
