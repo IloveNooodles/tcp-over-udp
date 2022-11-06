@@ -1,5 +1,6 @@
 import argparse
 from os.path import isfile
+from typing import Tuple
 
 import lib.segment as segment
 from lib.connection import Connection
@@ -50,11 +51,11 @@ class Server:
         # Handshake & file transfer for all client
         pass
 
-    def file_transfer(self, client_addr: (str, int)):
+    def file_transfer(self, client_addr: Tuple[str, int]):
         # File transfer, server-side, Send file to 1 client
         pass
 
-    def three_way_handshake(self, client_addr: (str, int)) -> bool:
+    def three_way_handshake(self, client_addr: Tuple[str, int]) -> bool:
         # Three way handshake, server-side, 1 client
         pass
 
