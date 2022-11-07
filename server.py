@@ -1,30 +1,14 @@
-import argparse
 from os.path import isfile
 from typing import Tuple
 
-import lib.segment as segment
+from lib.argparse import Parser
 from lib.connection import Connection
 from lib.segment import Segment
 
 
 class Server:
     def __init__(self):
-        parser = argparse.ArgumentParser(
-            description="Server for handling file transfer connection to client"
-        )
-        parser.add_argument(
-            "broadcast_port",
-            metavar="[broadcast port]",
-            type=int,
-            help="broadcast port used for all client",
-        )
-        parser.add_argument(
-            "pathfile_input",
-            metavar="[Path file input]",
-            type=str,
-            help="path to file you want to send",
-        )
-        args = parser.parse_args()
+        args = Parser(is_server=True)
         broadcast_port, pathfile_input = args.broadcast_port, args.pathfile_input
 
         self.broadcast_port = broadcast_port
