@@ -11,12 +11,12 @@ class Client:
         self.client_port = client_port
         self.broadcast_port = broadcast_port
         self.pathfile_output = pathfile_output
-        self.conn = Connection()
+        self.conn = Connection(broadcast_port=broadcast_port, port=client_port)
 
     def three_way_handshake(self):
         # Three Way Handshake, client-side
         print("[!] Initiating three way handshake...")
-        pass
+        self.conn.send_data(b"test", (self.conn.ip, self.broadcast_port))
 
     def listen_file_transfer(self):
         # File transfer, client-side
