@@ -1,5 +1,5 @@
 from typing import Tuple
-
+from math import ceil
 from lib.argparse import Parser
 from lib.connection import Connection
 from lib.segment import Segment
@@ -20,6 +20,9 @@ class Server:
         self.client_list = []
         self.filename = self.get_filename()
         print(f"[!] Source file | {self.filename} | {self.filesize} bytes")
+    
+    def countSegment(self):
+        return ceil(self.filesize/32768)
 
     # TODO kalo ngelebihin segment 2**15, dipecah datanya jadi 2 nanti dikirim2 sampe fin flag
     def listen_for_clients(self):
@@ -42,6 +45,7 @@ class Server:
                         print(f"{index+1} {ip}:{port}")
 
                     break
+
             except TimeoutError:
                 print(f"[!] Timeout Error")
 
