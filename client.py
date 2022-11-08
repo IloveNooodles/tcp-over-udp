@@ -26,6 +26,10 @@ class Client:
 
     def listen_file_transfer(self):
         try:
+            for i in range(len(self.pathfile_output) - 1, -1, -1):
+                if(self.pathfile_output[i] == '/'):
+                    self.pathfile_output = self.pathfile_output[i+1:]
+                    break
             file = open(f"out/{self.pathfile_output}", "wb")
             file.write(self.segment.get_payload())
             file.close()
