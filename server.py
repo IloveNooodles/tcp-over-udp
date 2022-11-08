@@ -1,4 +1,3 @@
-from os.path import isfile
 from typing import Tuple
 
 from lib.argparse import Parser
@@ -13,23 +12,40 @@ class Server:
 
         self.broadcast_port = broadcast_port
         self.pathfile = pathfile_input
-
-        if not self.file_exists():
-            print("[!] Source file doesn't exists. Exiting...")
-            exit(1)
-
-        self.conn = Connection(is_server=True)
+        self.conn = Connection(broadcast_port=broadcast_port, is_server=True)
         data, filesize = self.get_filedata()
         self.data = data
         self.filesize = filesize
         self.filename = self.get_filename()
         print(f"[!] Source file | {self.filename} | {self.filesize} bytes")
 
+    # TODO kalo ngelebihin segment 2**15, dipecah datanya jadi 2 nanti dikirim2 sampe fin flag
     def listen_for_clients(self):
         print("[!] Listening to broadcast address for clients.")
+        client_list = []
         while True:
-            self.conn.listen_single_segment()
-            self.get_filename()
+            try:
+                client = self.conn.listen_single_segment()
+                client_address = client[1]
+                ip, port = client_address
+                client_list.append(client_address)
+                print(f"[!] Recieved request from {ip}:{port}")
+                choice = input("[?] Listen more (y/n) ").lower()
+                while not self.choice_valid(choice):
+                    print("[!] Please input correct input")
+                    choice = input("[?] Listen more (y/n) ").lower()
+
+                if choice == 'n':
+                    print("Client list:")
+                    for index, (ip, port) in enumerate(client_list):
+                        print(f"{index+1} {ip}:{port}")
+
+                    # TODO DO tcp handshake
+                else:
+                    pass # do nothing
+
+            except TimeoutError:
+                print(f"[!] Timeout Error")
 
     def start_file_transfer(self):
         # Handshake & file transfer for all client
@@ -47,18 +63,29 @@ class Server:
         if "/" in self.pathfile:
             return self.pathfile.split("/")[-1]
 
-        return self.pathfile.split("\\")[-1]
+        elif "\\" in self.pathfile:
+            return self.pathfile.split("\\")[-1]
+        
+        return self.pathfile
 
     def get_filedata(self):
-        file = open(f"{self.pathfile}", "rb")
-        data = file.read()
-        filesize = len(data)
-        file.close()
-        return data, filesize
+        try:
+            file = open(f"{self.pathfile}", "rb")
+            data = file.read()
+            filesize = len(data)
+            file.close()
+            return data, filesize
+        except FileNotFoundError:
+            print(f"[!] {self.pathfile} doesn't exists. Exiting...")
+            exit(1)
 
-    def file_exists(self):
-        return isfile(self.pathfile)
-
+    def choice_valid(self, choice: str):
+        if choice.lower() == 'y':
+            return 'y'
+        elif choice.lower() == 'n':
+            return 'n'
+        else:
+            return False
 
 if __name__ == "__main__":
     main = Server()

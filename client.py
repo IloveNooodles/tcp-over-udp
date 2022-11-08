@@ -11,12 +11,18 @@ class Client:
         self.client_port = client_port
         self.broadcast_port = broadcast_port
         self.pathfile_output = pathfile_output
-        self.conn = Connection(broadcast_port=broadcast_port, port=client_port)
+        self.conn = Connection(broadcast_port=broadcast_port, port=client_port, is_server=False)
+        self.segment = Segment()
 
+    def connect(self):
+        self.conn.send_data(b"REQ", (self.conn.ip, self.broadcast_port))
+  
     def three_way_handshake(self):
         # Three Way Handshake, client-side
         print("[!] Initiating three way handshake...")
-        self.conn.send_data(b"test", (self.conn.ip, self.broadcast_port))
+        while True:
+            self.conn.listen_single_segment()
+
 
     def listen_file_transfer(self):
         # File transfer, client-side
@@ -25,5 +31,6 @@ class Client:
 
 if __name__ == "__main__":
     main = Client()
+    main.connect()
     main.three_way_handshake()
     main.listen_file_transfer()

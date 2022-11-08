@@ -17,30 +17,25 @@ class Connection:
             self.port = broadcast_port
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             self.socket.bind((ip, broadcast_port))
-            print(f"[!] Server started at {ip}:{port}")
+            print(f"[!] Server started at {self.ip}:{self.port}")
         else:
             self.ip = ip
             self.port = broadcast_port
             self.client_port = port
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             self.socket.bind((ip, port))
-            print(f"[!] Client started at {ip}:{port}")
+            print(f"[!] Client started at {self.ip}:{self.port}")
 
     def send_data(self, msg: Segment, dest: Tuple[str, int]):
         self.socket.sendto(msg, dest)
 
     def listen_single_segment(self) -> Segment:
         # Listen single UDP datagram within timeout and convert into segment
-        start = time()
         try:
             self.socket.settimeout(TIMEOUT)
-            print(self.socket.recvfrom(SEGMENT_SIZE))
-            print(time() - start)
+            return self.socket.recvfrom(SEGMENT_SIZE)
         except TimeoutError as e:
-            print(e)
-            print(start)
-            print(time() - start)
-        
+            raise e
 
     def close_socket(self):
         self.socket.close()
