@@ -14,21 +14,22 @@ class Server:
         self.pathfile = pathfile_input
         self.conn = Connection(broadcast_port=broadcast_port, is_server=True)
         data, filesize = self.get_filedata()
-        self.data = data
+        self.segment = Segment()
+        self.segment.set_payload(data)
         self.filesize = filesize
+        self.client_list = []
         self.filename = self.get_filename()
         print(f"[!] Source file | {self.filename} | {self.filesize} bytes")
 
     # TODO kalo ngelebihin segment 2**15, dipecah datanya jadi 2 nanti dikirim2 sampe fin flag
     def listen_for_clients(self):
         print("[!] Listening to broadcast address for clients.")
-        client_list = []
         while True:
             try:
                 client = self.conn.listen_single_segment()
                 client_address = client[1]
                 ip, port = client_address
-                client_list.append(client_address)
+                self.client_list.append(client_address)
                 print(f"[!] Recieved request from {ip}:{port}")
                 choice = input("[?] Listen more (y/n) ").lower()
                 while not self.choice_valid(choice):
@@ -37,18 +38,18 @@ class Server:
 
                 if choice == 'n':
                     print("Client list:")
-                    for index, (ip, port) in enumerate(client_list):
+                    for index, (ip, port) in enumerate(self.client_list):
                         print(f"{index+1} {ip}:{port}")
 
-                    # TODO DO tcp handshake
-                else:
-                    pass # do nothing
-
+                    break
             except TimeoutError:
                 print(f"[!] Timeout Error")
 
     def start_file_transfer(self):
         # Handshake & file transfer for all client
+        for client in self.client_list:
+            self.three_way_handshake(client)
+            # self.file_transfer(client)
         pass
 
     def file_transfer(self, client_addr: Tuple[str, int]):
@@ -56,7 +57,8 @@ class Server:
         pass
 
     def three_way_handshake(self, client_addr: Tuple[str, int]) -> bool:
-        # Three way handshake, server-side, 1 client
+        print(f"[!] [Client {client_addr[0]}:{client_addr[1]}] Initiating three way handshake...")
+        self.conn.send_data(self.segment.get_bytes(), client_addr)
         pass
 
     def get_filename(self):
