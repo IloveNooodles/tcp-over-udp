@@ -21,7 +21,8 @@ class Client:
         self.conn.send_data(self.segment.get_bytes(), (self.conn.ip, self.broadcast_port))
   
     def three_way_handshake(self):
-        while True:
+        end = False
+        while not end:
             # SYN-ACK
             data, server_addr = None, None
             try:
@@ -31,7 +32,6 @@ class Client:
             except:
                 print(f"[!] [Server {server_addr[0]}:{server_addr[1]}] [Timeout] SYN response timeout")
 
-            print(self.segment)
             if self.segment.get_flag() == SYN_FLAG:
                 self.segment.set_flag(["SYN", "ACK"])
                 header = self.segment.get_header()
@@ -40,17 +40,34 @@ class Client:
                 self.conn.send_data(self.segment.get_bytes(), server_addr)
                 self.seq += 1
                 print(f"[!] [Server {server_addr[0]}:{server_addr[1]}] Sending SYN-ACK")
-                break
+                end = True
+        # RECV ACK
+        self.conn.listen_single_segment()
 
 
     def listen_file_transfer(self):
+        raw_data = b""
+        while True:
+            try:
+                data, server_addr = self.conn.listen_single_segment()
+                self.segment.set_from_bytes(data)
+                if self.segment.valid_checksum():
+                    payload = self.segment.get_payload()
+                    raw_data += payload
+                    break
+                else:
+                    #TODO SEND ACK BUT file corrupt
+                    print("[!] Checksum Failed")
+                    break
+            except:
+                print(f"[!] [Server {server_addr[0]}:{server_addr[1]}] [Timeout] timeout error, resending prev seq num")
         try:
             for i in range(len(self.pathfile_output) - 1, -1, -1):
                 if(self.pathfile_output[i] == '/'):
                     self.pathfile_output = self.pathfile_output[i+1:]
                     break
             file = open(f"out/{self.pathfile_output}", "wb")
-            file.write(self.segment.get_payload())
+            file.write(raw_data)
             file.close()
         except:
             print(f"[!] {self.pathfile_output} doesn't exists. Exiting...")

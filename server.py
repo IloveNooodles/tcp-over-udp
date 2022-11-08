@@ -3,7 +3,8 @@ from typing import Tuple
 
 from lib.argparse import Parser
 from lib.connection import Connection
-from lib.constant import ACK_FLAG, SEGMENT_SIZE, SYN_ACK_FLAG, SYN_FLAG
+from lib.constant import (ACK_FLAG, PAYLOAD_SIZE, SEGMENT_SIZE, SYN_ACK_FLAG,
+                          SYN_FLAG)
 from lib.segment import Segment
 
 
@@ -24,8 +25,8 @@ class Server:
         self.seq = 0
         print(f"[!] Source file | {self.filename} | {self.filesize} bytes")
 
-    def countSegment(self):
-        return ceil(self.filesize / SEGMENT_SIZE - 12)
+    def count_segment(self):
+        return ceil(self.filesize / PAYLOAD_SIZE)
 
     # TODO kalo ngelebihin segment 2**15, dipecah datanya jadi 2 nanti dikirim2 sampe fin flag
     def listen_for_clients(self):
@@ -60,7 +61,43 @@ class Server:
 
     def file_transfer(self, client_addr: Tuple[str, int]):
         # File transfer, server-side, Send file to 1 client
-        self.conn.send_data(self.segment.get_bytes(), client_addr)
+        list_segment = []
+        num_of_segment = self.count_segment()
+        # After three way handshake seq num is now 1
+        # Flags is 0 for sending data
+        for i in range(num_of_segment):
+            segment = Segment()
+            data_to_set = self.data[i*PAYLOAD_SIZE:PAYLOAD_SIZE]
+            segment.set_payload(data_to_set)
+            header = segment.get_header()
+            header['seq'] = self.seq
+            header['ack'] = 0
+            segment.set_header(header)
+            list_segment.append(segment)
+            self.seq += 1
+
+        # Send all the segment per window
+        # Ack only 1
+        window_size = min(num_of_segment, 3)
+        counter = 0
+        # print(list_segment[0])
+        # print(list_segment[1])
+        #TODO Defined window size now is 3
+        for i in range(num_of_segment):
+            if counter == window_size:
+                counter = 0
+                ack_set = set()
+                while counter == window_size:
+                    try:
+                        data, client_addr = self.conn.listen_single_segment()
+                        self.segment.set_from_bytes(data)
+                        header = self.segment.get_header()
+                        #TODO cek header ack nya ada duplicate gak
+                    except:
+                        print(f"[!] [Client {client_addr[0]}:{client_addr[1]}] [Timeout] ACK response timeout, resending prev seq num")
+            print(client_addr, list_segment[i])
+            self.conn.send_data(list_segment[i].get_bytes(), client_addr)
+            counter += 1
 
     def three_way_handshake(self, client_addr: Tuple[str, int]) -> bool:
         print(f"[!] [Client {client_addr[0]}:{client_addr[1]}] Initiating three way handshake...")

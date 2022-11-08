@@ -85,6 +85,7 @@ class Segment:
 
     def get_bytes(self) -> bytes:
         # Convert this object to pure bytes
+        self.checksum = self.__calculate_checksum()
         res = b""
         res += struct.pack("II", self.seq, self.ack)
         res += self.flag.get_flag_bytes()
