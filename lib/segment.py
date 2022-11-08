@@ -14,6 +14,9 @@ class SegmentFlag:
     def get_flag_bytes(self) -> bytes:
         # Convert this object to flag in byte form
         return struct.pack("B", self.syn | self.ack | self.fin)
+    
+    def get_flag(self) -> int:
+        return self.syn | self.ack | self.fin
 
 
 class Segment:
@@ -29,13 +32,13 @@ class Segment:
     def __str__(self):
         # Optional, override this method for easier print(segmentA)
         output = ""
-        output += f"{'SeqNum':12} | {self.seq}\n"
-        output += f"{'AckNum':12} | {self.ack}\n"
-        output += f"{'FlagSYN':12} | {self.flag.syn >> 1}\n"
-        output += f"{'FlagACK':12} | {self.flag.ack >> 4}\n"
-        output += f"{'FlagFIN':12} | {self.flag.fin}\n"
-        output += f"{'Checksum':24} | {self.checksum}\n"
-        output += f"{'MsgSize':24} | {len(self.data)}\n"
+        output += f"{'SeqNum':12}\t\t| {self.seq}\n"
+        output += f"{'AckNum':12}\t\t| {self.ack}\n"
+        output += f"{'FlagSYN':12}\t\t| {self.flag.syn >> 1}\n"
+        output += f"{'FlagACK':12}\t\t| {self.flag.ack >> 4}\n"
+        output += f"{'FlagFIN':12}\t\t| {self.flag.fin}\n"
+        output += f"{'Checksum':24}| {self.checksum}\n"
+        output += f"{'MsgSize':24}| {len(self.data)}\n"
         return output
 
     def __calculate_checksum(self) -> int:
@@ -63,7 +66,7 @@ class Segment:
 
     # -- Getter --
     def get_flag(self) -> SegmentFlag:
-        return self.flag
+        return self.flag.get_flag()
 
     def get_header(self) -> dict:
         return {"seq": self.seq, "ack": self.ack}

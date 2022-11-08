@@ -1,7 +1,9 @@
-from typing import Tuple
 from math import ceil
+from typing import Tuple
+
 from lib.argparse import Parser
 from lib.connection import Connection
+from lib.constant import ACK_FLAG, SEGMENT_SIZE, SYN_ACK_FLAG, SYN_FLAG
 from lib.segment import Segment
 
 
@@ -14,15 +16,16 @@ class Server:
         self.pathfile = pathfile_input
         self.conn = Connection(broadcast_port=broadcast_port, is_server=True)
         data, filesize = self.get_filedata()
-        self.segment = Segment()
-        self.segment.set_payload(data)
+        self.data = data
         self.filesize = filesize
+        self.segment = Segment()
         self.client_list = []
         self.filename = self.get_filename()
+        self.seq = 0
         print(f"[!] Source file | {self.filename} | {self.filesize} bytes")
-    
+
     def countSegment(self):
-        return ceil(self.filesize/32768)
+        return ceil(self.filesize / SEGMENT_SIZE - 12)
 
     # TODO kalo ngelebihin segment 2**15, dipecah datanya jadi 2 nanti dikirim2 sampe fin flag
     def listen_for_clients(self):
@@ -40,31 +43,55 @@ class Server:
                     choice = input("[?] Listen more (y/n) ").lower()
 
                 if choice == 'n':
-                    print("Client list:")
+                    print("\nClient list:")
                     for index, (ip, port) in enumerate(self.client_list):
                         print(f"{index+1} {ip}:{port}")
 
+                    print("")
                     break
 
             except TimeoutError:
-                print(f"[!] Timeout Error")
+                print("[!] Timeout Error")
 
     def start_file_transfer(self):
-        # Handshake & file transfer for all client
         for client in self.client_list:
             self.three_way_handshake(client)
-            # self.file_transfer(client)
-        pass
+            self.file_transfer(client)
 
     def file_transfer(self, client_addr: Tuple[str, int]):
         # File transfer, server-side, Send file to 1 client
-        pass
+        self.conn.send_data(self.segment.get_bytes(), client_addr)
 
     def three_way_handshake(self, client_addr: Tuple[str, int]) -> bool:
         print(f"[!] [Client {client_addr[0]}:{client_addr[1]}] Initiating three way handshake...")
-        self.conn.send_data(self.segment.get_bytes(), client_addr)
-        pass
+        self.segment.set_flag(['SYN'])
+        while True:
+            # SYN
+            if self.segment.get_flag() == SYN_FLAG:
+                print(f"[!] [Client {client_addr[0]}:{client_addr[1]}] Sending SYN")
+                header = self.segment.get_header()
+                header["seq"] = self.seq
+                header["ack"] = 0
+                self.conn.send_data(self.segment.get_bytes(), client_addr)
+                try:
+                    data, address = self.conn.listen_single_segment()
+                    self.segment.set_from_bytes(data)
+                    self.seq += 1
 
+                except TimeoutError:
+                    print(f"[!] [Client {client_addr[0]}:{client_addr[1]}] [Timeout] ACK response timeout, resending SYN")
+            
+            # ACK only send ack to client no need to add seq num
+            elif self.segment.get_flag() == SYN_ACK_FLAG:
+                print(f"[!] [Client {client_addr[0]}:{client_addr[1]}] Recieve SYN-ACK")
+                print(f"[!] [Client {client_addr[0]}:{client_addr[1]}] Sending ACK")
+                header = self.segment.get_header()
+                header["ack"] = header['seq']
+                self.segment.set_header(header)
+                self.segment.set_flag(["ACK"])
+                self.conn.send_data(self.segment.get_bytes(), client_addr)
+                break
+  
     def get_filename(self):
         if "/" in self.pathfile:
             return self.pathfile.split("/")[-1]
