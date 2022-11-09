@@ -72,12 +72,14 @@ class Client:
                     elif self.segment.get_flag() == FIN_FLAG:
                         print(f"[!] [Server {server_addr[0]}:{server_addr[1]}] Recieve FIN")
                         break
-                    elif self.segment.get_header()['seq'] != rn+1:
-                        print(f"[!] [Server {server_addr[0]}:{server_addr[1]}] Recieve Segment {rn+1} [Duplicate]")
+                    elif self.segment.get_header()['seq'] < rn+1:
+                        print(f"[!] [Server {server_addr[0]}:{server_addr[1]}] Recieve Segment {self.segment.get_header()['seq']} [Duplicate]")
+                    elif self.segment.get_header()['seq'] > rn+1:
+                        print(f"[!] [Server {server_addr[0]}:{server_addr[1]}] Recieve Segment {self.segment.get_header()['seq']} [Out-Of-Order]")
                     else:
-                        print(f"[!] [Server {server_addr[0]}:{server_addr[1]}] Recieve Segment {rn+1} [Corrupt]")
+                        print(f"[!] [Server {server_addr[0]}:{server_addr[1]}] Recieve Segment {self.segment.get_header()['seq']} [Corrupt]")
                 else:
-                    print(f"[!] [Server {server_addr[0]}:{server_addr[1]}] Recieve Segment {rn+1} [Wrong port]")
+                    print(f"[!] [Server {server_addr[0]}:{server_addr[1]}] Recieve Segment {self.segment.get_header()['seq']} [Wrong port]")
                 self.sendACK(server_addr, rn)
             except:
                 print(f"[!] [Server {server_addr[0]}:{server_addr[1]}] [Timeout] timeout error, resending prev seq num")
