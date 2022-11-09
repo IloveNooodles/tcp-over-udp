@@ -4,7 +4,7 @@ from typing import Tuple
 from lib.argparse import Parser
 from lib.connection import Connection
 from lib.constant import (ACK_FLAG, PAYLOAD_SIZE, SEGMENT_SIZE, SYN_ACK_FLAG,
-                          SYN_FLAG)
+                          SYN_FLAG, WINDOW_SIZE)
 from lib.segment import Segment
 
 
@@ -28,7 +28,6 @@ class Server:
     def count_segment(self):
         return ceil(self.filesize / PAYLOAD_SIZE)
 
-    # TODO kalo ngelebihin segment 2**15, dipecah datanya jadi 2 nanti dikirim2 sampe fin flag
     def listen_for_clients(self):
         print("[!] Listening to broadcast address for clients.")
         while True:
@@ -76,28 +75,35 @@ class Server:
             list_segment.append(segment)
             self.seq += 1
 
-        # Send all the segment per window
-        # Ack only 1
-        window_size = min(num_of_segment, 3)
-        counter = 0
-        # print(list_segment[0])
-        # print(list_segment[1])
-        #TODO Defined window size now is 3
-        for i in range(num_of_segment):
-            if counter == window_size:
-                counter = 0
-                ack_set = set()
-                while counter == window_size:
-                    try:
-                        data, client_addr = self.conn.listen_single_segment()
-                        self.segment.set_from_bytes(data)
-                        header = self.segment.get_header()
-                        #TODO cek header ack nya ada duplicate gak
-                    except:
-                        print(f"[!] [Client {client_addr[0]}:{client_addr[1]}] [Timeout] ACK response timeout, resending prev seq num")
-            print(client_addr, list_segment[i])
-            self.conn.send_data(list_segment[i].get_bytes(), client_addr)
-            counter += 1
+        window_size = min(num_of_segment, WINDOW_SIZE)
+        sb = 0
+
+        while (sb < num_of_segment):
+            size_slide = window_size
+            for i in range(size_slide):
+                print(f"[!] [Client {client_addr[0]}:{client_addr[1]}] Sending Segment {sb+i+1}")
+                self.conn.send_data(list_segment[i+sb].get_bytes(), client_addr)
+            for i in range(size_slide):
+                try:
+                    data, response_addr = self.conn.listen_single_segment()
+                    segment = Segment()
+                    segment.set_from_bytes(data)
+                    if (client_addr[1] == response_addr[1] and segment.get_flag() == ACK_FLAG and segment.get_header()['ack'] == sb+1):
+                        print(f"[!] [Client {client_addr[0]}:{client_addr[1]}] Recieved ACK {sb+1}")
+                        sb += 1
+                        window_size = min(num_of_segment - sb, WINDOW_SIZE)
+                    elif (client_addr[1] != response_addr[1]):
+                        print(f"[!] [Client {client_addr[0]}:{client_addr[1]}] Recieved ACK from wrong client")
+                    elif (segment.get_flag() != ACK_FLAG):
+                        print(f"[!] [Client {client_addr[0]}:{client_addr[1]}] Recieved wrong flag")
+                    else:
+                        print(f"[!] [Client {client_addr[0]}:{client_addr[1]}] Recieved Wrong ACK")
+                except:
+                    print(f"[!] [Client {client_addr[0]}:{client_addr[1]}] [Timeout] ACK response timeout, resending prev seq num")
+        print(f"[!] [Client {client_addr[0]}:{client_addr[1]}] File transfer complete")
+        sendFIN = Segment()
+        sendFIN.set_flag(['FIN'])
+        self.conn.send_data(sendFIN.get_bytes(), client_addr)
 
     def three_way_handshake(self, client_addr: Tuple[str, int]) -> bool:
         print(f"[!] [Client {client_addr[0]}:{client_addr[1]}] Initiating three way handshake...")

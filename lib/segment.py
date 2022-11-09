@@ -64,6 +64,9 @@ class Segment:
                 new_flag |= FIN_FLAG
         self.flag = SegmentFlag(new_flag)
 
+    def set_checksum(self, checksum: int):
+        self.checksum = checksum
+
     # -- Getter --
     def get_flag(self) -> SegmentFlag:
         return self.flag.get_flag()

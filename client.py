@@ -1,7 +1,7 @@
 
 from lib.argparse import Parser
 from lib.connection import Connection
-from lib.constant import ACK_FLAG, SEGMENT_SIZE, SYN_ACK_FLAG, SYN_FLAG
+from lib.constant import ACK_FLAG, FIN_FLAG, SEGMENT_SIZE, SYN_ACK_FLAG, SYN_FLAG
 from lib.segment import Segment
 
 
@@ -44,23 +44,44 @@ class Client:
         # RECV ACK
         self.conn.listen_single_segment()
 
+    def sendACK(self, server_addr, ackNumber):
+        response = Segment()
+        response.set_flag(["ACK"])
+        header = response.get_header()
+        header['seq'] = 0
+        header['ack'] = ackNumber
+        response.set_header(header)
+        self.conn.send_data(response.get_bytes(), server_addr)
 
     def listen_file_transfer(self):
         raw_data = b""
+        rn = 0
         while True:
             try:
                 data, server_addr = self.conn.listen_single_segment()
-                self.segment.set_from_bytes(data)
-                if self.segment.valid_checksum():
-                    payload = self.segment.get_payload()
-                    raw_data += payload
-                    break
+                if (server_addr[1] == self.broadcast_port):
+                    self.segment.set_from_bytes(data)
+                    if self.segment.valid_checksum() and self.segment.get_header()['seq'] == rn+1:
+                        payload = self.segment.get_payload()
+                        raw_data += payload
+                        print(f"[!] [Server {server_addr[0]}:{server_addr[1]}] Recieve Segment {rn+1}")
+                        print(f"[!] [Server {server_addr[0]}:{server_addr[1]}] Sending ACK {rn+1}")
+                        self.sendACK(server_addr, rn+1)
+                        rn+=1
+                        continue
+                    elif self.segment.get_flag() == FIN_FLAG:
+                        print(f"[!] [Server {server_addr[0]}:{server_addr[1]}] Recieve FIN")
+                        break
+                    elif self.segment.get_header()['seq'] != rn+1:
+                        print(f"[!] [Server {server_addr[0]}:{server_addr[1]}] Recieve Segment {rn+1} [Duplicate]")
+                    else:
+                        print(f"[!] [Server {server_addr[0]}:{server_addr[1]}] Recieve Segment {rn+1} [Corrupt]")
                 else:
-                    #TODO SEND ACK BUT file corrupt
-                    print("[!] Checksum Failed")
-                    break
+                    print(f"[!] [Server {server_addr[0]}:{server_addr[1]}] Recieve Segment {rn+1} [Wrong port]")
+                self.sendACK(server_addr, rn)
             except:
                 print(f"[!] [Server {server_addr[0]}:{server_addr[1]}] [Timeout] timeout error, resending prev seq num")
+                self.sendACK(server_addr, rn)
         try:
             for i in range(len(self.pathfile_output) - 1, -1, -1):
                 if(self.pathfile_output[i] == '/'):

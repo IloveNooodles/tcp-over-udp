@@ -16,6 +16,7 @@ class Connection:
             self.ip = ip
             self.port = broadcast_port
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
             self.socket.bind((ip, broadcast_port))
             print(f"[!] Server started at {self.ip}:{self.port}")
