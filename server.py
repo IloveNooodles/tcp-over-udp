@@ -66,7 +66,7 @@ class Server:
         # Flags is 0 for sending data
         for i in range(num_of_segment):
             segment = Segment()
-            data_to_set = self.data[i*PAYLOAD_SIZE:PAYLOAD_SIZE]
+            data_to_set = self.data[i*PAYLOAD_SIZE:(i+1)*PAYLOAD_SIZE]
             segment.set_payload(data_to_set)
             header = segment.get_header()
             header['seq'] = self.seq
