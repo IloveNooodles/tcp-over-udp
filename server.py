@@ -3,15 +3,8 @@ from typing import Tuple
 
 from lib.argparse import Parser
 from lib.connection import Connection
-from lib.constant import (
-    ACK_FLAG,
-    FIN_ACK_FLAG,
-    PAYLOAD_SIZE,
-    SEGMENT_SIZE,
-    SYN_ACK_FLAG,
-    SYN_FLAG,
-    WINDOW_SIZE,
-)
+from lib.constant import (ACK_FLAG, FIN_ACK_FLAG, PAYLOAD_SIZE, SEGMENT_SIZE,
+                          SYN_ACK_FLAG, SYN_FLAG, WINDOW_SIZE)
 from lib.segment import Segment
 
 
@@ -130,33 +123,28 @@ class Server:
         sendFIN.set_flag(["FIN"])
         self.conn.send_data(sendFIN.get_bytes(), client_addr)
         is_ack = False
-        # Wait for ack and fin_ack
+  
+        # Wait for ack
         while not is_ack:
             try:
                 data, response_addr = self.conn.listen_single_segment()
                 segment = Segment()
                 segment.set_from_bytes(data)
+                print(segment.get_flag())
                 if (
                     client_addr[1] == response_addr[1]
-                    and segment.get_flag() == ACK_FLAG
-                    and segment.get_header()["ack"] == sb + 1
+                    and segment.get_flag() == FIN_ACK_FLAG
                 ):
                     print(
-                        f"[!] [Client {client_addr[0]}:{client_addr[1]}] Recieved ACK {sb+1}"
+                        f"[!] [Client {client_addr[0]}:{client_addr[1]}] Recieved FIN-ACK"
                     )
                     sb += 1
-                elif (
-                    client_addr[1] == response_addr[1]
-                    and segment.get_flag() == SYN_ACK_FLAG
-                ):
-                    print(
-                        f"[!] [Client {client_addr[0]}:{client_addr[1]}] Recieved SYN-ACK"
-                    )
-                    is_ack = True
+                    is_ack=True
             except:
                 print(
                     f"[!] [Client {client_addr[0]}:{client_addr[1]}] [Timeout] ACK response timeout, resending FIN"
                 )
+                self.conn.send_data(sendFIN.get_bytes(), client_addr)
 
         # send ACK and tear down connection
         print(
@@ -164,7 +152,6 @@ class Server:
         )
         segmentACK = Segment()
         segmentACK.set_flag(["ACK"])
-        segment
         self.conn.send_data(segmentACK.get_bytes(), client_addr)
 
     def three_way_handshake(self, client_addr: Tuple[str, int]) -> bool:

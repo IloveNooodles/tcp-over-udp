@@ -1,6 +1,7 @@
 from lib.argparse import Parser
 from lib.connection import Connection
-from lib.constant import ACK_FLAG, FIN_FLAG, SEGMENT_SIZE, SYN_ACK_FLAG, SYN_FLAG
+from lib.constant import (ACK_FLAG, FIN_FLAG, SEGMENT_SIZE, SYN_ACK_FLAG,
+                          SYN_FLAG)
 from lib.segment import Segment
 
 
@@ -86,19 +87,6 @@ class Client:
                         print(
                             f"[!] [Server {server_addr[0]}:{server_addr[1]}] Recieved FIN"
                         )
-                        print(
-                            f"[!] [Server {server_addr[0]}:{server_addr[1]}] Sending ACK {rn+1}"
-                        )
-                        self.sendACK(server_addr, rn + 1)
-                        rn += 1
-                        print(
-                            f"[!] [Server {server_addr[0]}:{server_addr[1]}] Sending FIN-ACK"
-                        )
-                        # send FIN ACK
-                        header = self.segment.get_header()
-                        header["ack"] = rn + 1
-                        self.set_flag(["FIN", "ACK"])
-                        self.conn.send_data(finAck.get_bytes(), server_addr)
                         break
                     elif self.segment.get_header()["seq"] < rn + 1:
                         print(
@@ -123,12 +111,21 @@ class Client:
                 )
                 self.sendACK(server_addr, rn)
 
-        # Wait for ACK for tearing down connection
+        # sent FIN-ACK and wait for ACK to tearing down connection
+        print(
+            f"[!] [Server {server_addr[0]}:{server_addr[1]}] Sending FIN-ACK"
+        )
+        # send FIN ACK
+        finack = Segment()
+        finack.set_header({"ack": rn + 1, "seq": rn + 1})
+        finack.set_flag(["FIN", "ACK"])
+        self.conn.send_data(finack.get_bytes(), server_addr)
         ack = False
         while not ack:
             try:
                 data, server_addr = self.conn.listen_single_segment()
                 ackSegment = Segment()
+                ackSegment.set_from_bytes(data)
                 if ackSegment.get_flag() == ACK_FLAG:
                     print(
                         f"[!] [Server {server_addr[0]}:{server_addr[1]}] Recieved ACK. Tearing down connection."
@@ -136,8 +133,16 @@ class Client:
                     ack = True
             except:
                 print(
-                    f"[!] [Server {server_addr[0]}:{server_addr[1]}] [Timeout] timeout error, resending prev seq num"
+                    f"[!] [Server {server_addr[0]}:{server_addr[1]}] [Timeout] timeout error, resending FIN ACK"
                 )
+                self.conn.send_data(finack.get_bytes(), server_addr)
+        # Finish get ack from server try to write file
+        print(
+            f"[!] [Server {server_addr[0]}:{server_addr[1]}] Data recieved successfuly"
+        )
+        print(
+            f"[!] [Server {server_addr[0]}:{server_addr[1]}] Writing file to out/{self.pathfile_output}"
+        )
         try:
             for i in range(len(self.pathfile_output) - 1, -1, -1):
                 if self.pathfile_output[i] == "/":
@@ -146,6 +151,9 @@ class Client:
             file = open(f"out/{self.pathfile_output}", "wb")
             file.write(raw_data)
             file.close()
+            print(
+                f"[!] [Server {server_addr[0]}:{server_addr[1]}] File transfer complete"
+            )
         except:
             print(f"[!] {self.pathfile_output} doesn't exists. Exiting...")
             exit(1)
