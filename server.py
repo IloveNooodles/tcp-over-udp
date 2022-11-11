@@ -22,7 +22,6 @@ class Server:
         self.segment = Segment()
         self.client_list = []
         self.filename = self.get_filename()
-        self.seq = 0
         print(f"[!] Source file | {self.filename} | {self.filesize} bytes")
 
     def count_segment(self):
@@ -64,16 +63,17 @@ class Server:
         num_of_segment = self.count_segment()
         # After three way handshake seq num is now 1
         # Flags is 0 for sending data
+        seq = 1
         for i in range(num_of_segment):
             segment = Segment()
             data_to_set = self.data[i * PAYLOAD_SIZE : (i + 1) * PAYLOAD_SIZE]
             segment.set_payload(data_to_set)
             header = segment.get_header()
-            header["seq"] = self.seq
+            header["seq"] = seq
             header["ack"] = 0
             segment.set_header(header)
             list_segment.append(segment)
-            self.seq += 1
+            seq += 1
 
         window_size = min(num_of_segment, WINDOW_SIZE)
         sb = 0
@@ -159,18 +159,19 @@ class Server:
             f"[!] [Client {client_addr[0]}:{client_addr[1]}] Initiating three way handshake..."
         )
         self.segment.set_flag(["SYN"])
+        seq = 0
         while True:
             # SYN
             if self.segment.get_flag() == SYN_FLAG:
                 print(f"[!] [Client {client_addr[0]}:{client_addr[1]}] Sending SYN")
                 header = self.segment.get_header()
-                header["seq"] = self.seq
+                header["seq"] = seq
                 header["ack"] = 0
                 self.conn.send_data(self.segment.get_bytes(), client_addr)
                 try:
                     data, address = self.conn.listen_single_segment()
                     self.segment.set_from_bytes(data)
-                    self.seq += 1
+                    seq += 1
 
                 except TimeoutError:
                     print(

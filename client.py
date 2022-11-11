@@ -16,8 +16,6 @@ class Client:
             broadcast_port=broadcast_port, port=client_port, is_server=False
         )
         self.segment = Segment()
-        self.seq = 0
-        self.ack = 0
 
     def connect(self):
         self.conn.send_data(
@@ -26,6 +24,7 @@ class Client:
 
     def three_way_handshake(self):
         end = False
+        seq = 0
         while not end:
             # SYN-ACK
             data, server_addr = None, None
@@ -42,13 +41,23 @@ class Client:
                 self.segment.set_flag(["SYN", "ACK"])
                 header = self.segment.get_header()
                 header["ack"] = header["seq"] + 1
-                header["seq"] = self.seq
+                header["seq"] = seq
                 self.conn.send_data(self.segment.get_bytes(), server_addr)
-                self.seq += 1
+                seq += 1
                 print(f"[!] [Server {server_addr[0]}:{server_addr[1]}] Sending SYN-ACK")
                 end = True
         # RECV ACK
-        self.conn.listen_single_segment()
+        ack = False
+        while not ack:
+            data, server_addr = self.conn.listen_single_segment()
+            ackFlag = Segment()
+            ackFlag.set_from_bytes(data)
+            print(ackFlag)
+            if ackFlag.get_flag() == ACK_FLAG:
+                print(f"[!] [Server {server_addr[0]}:{server_addr[1]}] Recieved ACK")
+                print(f"[!] [Server {server_addr[0]}:{server_addr[1]}] Handshake complete")
+                ack = True
+                break
 
     def sendACK(self, server_addr, ackNumber):
         response = Segment()
