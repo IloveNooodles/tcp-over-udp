@@ -32,10 +32,10 @@ class Connection:
     def send_data(self, msg: Segment, dest: Tuple[str, int]):
         self.socket.sendto(msg, dest)
 
-    def listen_single_segment(self) -> Segment:
+    def listen_single_segment(self, timeout=TIMEOUT) -> Segment:
         # Listen single UDP datagram within timeout and convert into segment
         try:
-            self.socket.settimeout(TIMEOUT)
+            self.socket.settimeout(timeout)
             return self.socket.recvfrom(SEGMENT_SIZE)
         except TimeoutError as e:
             raise e
