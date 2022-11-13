@@ -1,8 +1,10 @@
+from socket import timeout as socket_timeout
+
 from lib.argparse import Parser
 from lib.connection import Connection
-from lib.constant import ACK_FLAG, FIN_FLAG, SYN_ACK_FLAG, SYN_FLAG, TIMEOUT_LISTEN
+from lib.constant import (ACK_FLAG, FIN_FLAG, SYN_ACK_FLAG, SYN_FLAG,
+                          TIMEOUT_LISTEN)
 from lib.segment import Segment
-from socket import timeout as socket_timeout
 
 
 class Client:
@@ -175,10 +177,17 @@ class Client:
             print(f"[!] {self.pathfile_output} doesn't exists. Exiting...")
             exit(1)
 
+    def recieve_metadata(self):
+          pass
+    
+    def shutdown(self):
+        self.conn.close_socket()
+
 
 if __name__ == "__main__":
     main = Client()
     main.connect()
     main.three_way_handshake()
+    main.recieve_metadata()
     main.listen_file_transfer()
-    main.conn.close_socket()
+    main.shutdown()

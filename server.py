@@ -1,4 +1,6 @@
+import threading
 from math import ceil
+from socket import timeout as socket_timeout
 from typing import Tuple
 
 from lib.argparse import Parser
@@ -14,14 +16,12 @@ from lib.constant import (
     WINDOW_SIZE,
 )
 from lib.segment import Segment
-from socket import timeout as socket_timeout
-import threading
+
 
 class Server:
     def __init__(self):
         args = Parser(is_server=True)
         broadcast_port, pathfile_input = args.broadcast_port, args.pathfile_input
-
         self.broadcast_port = broadcast_port
         self.pathfile = pathfile_input
         self.conn = Connection(broadcast_port=broadcast_port, is_server=True)
@@ -31,6 +31,8 @@ class Server:
         self.segment = Segment()
         self.client_list = []
         self.filename = self.get_filename()
+        self.is_parallel = False
+        self.running_thread = None
         print(f"[!] Source file | {self.filename} | {self.filesize} bytes")
 
     def count_segment(self):
@@ -43,28 +45,49 @@ class Server:
                 client = self.conn.listen_single_segment(TIMEOUT_LISTEN)
                 client_address = client[1]
                 ip, port = client_address
-                self.client_list.append(client_address)
-                print(f"[!] Recieved request from {ip}:{port}")
-                choice = input("[?] Listen more (y/n) ").lower()
-                while not self.choice_valid(choice):
-                    print("[!] Please input correct input")
+                # Create thread when parallel is on
+                if self.is_parallel:
+                    # check if the tuple is diff, if not then don't create thread
+                    if self.running_thread == client_address:
+                        continue
+
+                    self.running_thread = client_address
+                    send_file = threading.Thread(
+                        target=self.start_file_transfer,
+                        kwargs={"client_parallel": self.running_thread},
+                    )
+                    send_file.start()
+                    continue
+                else:
+                    self.client_list.append(client_address)
+                    print(f"[!] Recieved request from {ip}:{port}")
                     choice = input("[?] Listen more (y/n) ").lower()
+                    while not self.choice_valid(choice):
+                        print("[!] Please input correct input")
+                        choice = input("[?] Listen more (y/n) ").lower()
 
-                if choice == "n":
-                    print("\nClient list:")
-                    for index, (ip, port) in enumerate(self.client_list):
-                        print(f"{index+1} {ip}:{port}")
+                    if choice == "n":
+                        print("\nClient list:")
+                        for index, (ip, port) in enumerate(self.client_list):
+                            print(f"{index+1} {ip}:{port}")
 
-                    print("")
-                    break
+                        print("")
+                        break
 
             except socket_timeout:
-                print("[!] Timeout Error for listening client")
+                print("[!] Timeout Error for listening client. exiting")
 
-    def start_file_transfer(self):
-        for client in self.client_list:
-            self.three_way_handshake(client)
-            self.file_transfer(client)
+    def start_file_transfer(self, client_parallel=None):
+        print(client_parallel)
+        if not self.is_parallel:
+            for client in self.client_list:
+                self.three_way_handshake(client)
+                self.send_metadata()
+                self.file_transfer(client)
+        else:
+            self.three_way_handshake(client_parallel)
+            self.send_metadata()
+            self.file_transfer(client_parallel)
 
     def file_transfer(self, client_addr: Tuple[str, int]):
         # File transfer, server-side, Send file to 1 client
@@ -94,15 +117,17 @@ class Server:
                     f"[!] [Client {client_addr[0]}:{client_addr[1]}] Sending Segment {sequence_base+i+1}"
                 )
                 if i + sequence_base < num_of_segment:
-                    self.conn.send_data(list_segment[i + sequence_base].get_bytes(), client_addr)
+                    self.conn.send_data(
+                        list_segment[i + sequence_base].get_bytes(), client_addr
+                    )
             for i in range(sequence_max):
                 try:
                     data, response_addr = self.conn.listen_single_segment()
                     segment = Segment()
                     segment.set_from_bytes(data)
 
-                    print("CURRENT SEGMENT: ", segment.get_header())
-                    print("CURRENT_sequence_base: ", sequence_base)
+                    # print("CURRENT SEGMENT: ", segment.get_header())
+                    # print("CURRENT_sequence_base: ", sequence_base)
                     if (
                         client_addr[1] == response_addr[1]
                         and segment.get_flag() == ACK_FLAG
@@ -125,7 +150,7 @@ class Server:
                         print(
                             f"[!] [Client {client_addr[0]}:{client_addr[1]}] Recieved Wrong ACK"
                         )
-                        request_number = segment.get_header()['ack']
+                        request_number = segment.get_header()["ack"]
                         sequence_max = (sequence_max - sequence_base) + request_number
                         sequence_base = request_number
                 except socket_timeout:
@@ -217,6 +242,9 @@ class Server:
 
         return self.pathfile
 
+    def get_file_ext(self):
+        return self.filename.split(".")[-1]
+
     def get_filedata(self):
         try:
             file = open(f"{self.pathfile}", "rb")
@@ -236,8 +264,36 @@ class Server:
         else:
             return False
 
+    def prompt_parallelization(self):
+        choice = input(
+            "[?] Do you want to enable paralelization for the server? (y/n)"
+        ).lower()
+        while not self.choice_valid(choice):
+            print("[!] Please input correct input")
+            choice = input(
+                "[?] Do you want to enable paralelization for the server? (y/n)"
+            ).lower()
+
+        if choice == "y":
+            self.is_parallel = True
+
+    def send_metadata(self):
+        metadata_segment = Segment()
+        metadata = b""
+        filename = self.filename
+        extension = self.get_file_ext()
+        filesize = self.filesize
+        metadata += filename.encode() + extension.encode() + str(filesize).encode()
+        metadata_segment.set_payload(metadata)
+
+    def shutdown(self):
+        self.conn.close_socket()
+
 
 if __name__ == "__main__":
     main = Server()
+    main.prompt_parallelization()
     main.listen_for_clients()
-    main.start_file_transfer()
+    if not main.is_parallel:
+        main.start_file_transfer()
+    main.shutdown()
