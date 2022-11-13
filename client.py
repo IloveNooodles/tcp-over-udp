@@ -1,6 +1,6 @@
 from lib.argparse import Parser
 from lib.connection import Connection
-from lib.constant import ACK_FLAG, FIN_FLAG, SEGMENT_SIZE, SYN_ACK_FLAG, SYN_FLAG
+from lib.constant import ACK_FLAG, FIN_FLAG, SYN_ACK_FLAG, SYN_FLAG, TIMEOUT_LISTEN
 from lib.segment import Segment
 
 
@@ -26,12 +26,12 @@ class Client:
         seq = 0
         while not end:
             # SYN-ACK
-            data, server_addr = None, None
+            data, server_addr = None, ("localhost", self.broadcast_port)
             try:
-                data, server_addr = self.conn.listen_single_segment()
+                data, server_addr = self.conn.listen_single_segment(TIMEOUT_LISTEN)
                 self.segment.set_from_bytes(data)
                 print(f"[!] [Server {server_addr[0]}:{server_addr[1]}] Recieved SYN")
-            except TimeoutError:
+            except:
                 print(
                     f"[!] [Server {server_addr[0]}:{server_addr[1]}] [Timeout] SYN response timeout"
                 )
@@ -115,7 +115,7 @@ class Client:
                         f"[!] [Server {server_addr[0]}:{server_addr[1]}] Recieved Segment {self.segment.get_header()['seq']} [Wrong port]"
                     )
                 self.sendACK(server_addr, rn)
-            except TimeoutError:
+            except:
                 print(
                     f"[!] [Server {server_addr[0]}:{server_addr[1]}] [Timeout] timeout error, resending prev seq num"
                 )

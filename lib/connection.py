@@ -2,15 +2,24 @@ import socket
 from time import time
 from typing import Tuple
 
-from .constant import (DEFAULT_BROADCAST_PORT, DEFAULT_IP, DEFAULT_PORT,
-                       SEGMENT_SIZE, TIMEOUT)
+from .constant import (
+    DEFAULT_BROADCAST_PORT,
+    DEFAULT_IP,
+    DEFAULT_PORT,
+    SEGMENT_SIZE,
+    TIMEOUT,
+)
 from .segment import Segment
 
 
 class Connection:
     # TODO check if port already in used and check if port can be reused or set broadcast
     def __init__(
-        self, ip: str = DEFAULT_IP, broadcast_port: int = DEFAULT_BROADCAST_PORT, port: int = DEFAULT_PORT, is_server: bool = False
+        self,
+        ip: str = DEFAULT_IP,
+        broadcast_port: int = DEFAULT_BROADCAST_PORT,
+        port: int = DEFAULT_PORT,
+        is_server: bool = False,
     ):
         if is_server:
             self.ip = ip
@@ -44,4 +53,6 @@ class Connection:
         self.socket.close()
 
     def __str__(self):
-        print (f"ip: {self.ip}\n broadcast_port: {self.port}\n  client port:{self.client_port}\n")
+        print(
+            f"ip: {self.ip}\n broadcast_port: {self.port}\n  client port:{self.client_port}\n"
+        )

@@ -3,8 +3,16 @@ from typing import Tuple
 
 from lib.argparse import Parser
 from lib.connection import Connection
-from lib.constant import (ACK_FLAG, FIN_ACK_FLAG, PAYLOAD_SIZE, SEGMENT_SIZE,
-                          SYN_ACK_FLAG, SYN_FLAG, WINDOW_SIZE, TIMEOUT_LISTEN)
+from lib.constant import (
+    ACK_FLAG,
+    FIN_ACK_FLAG,
+    PAYLOAD_SIZE,
+    SEGMENT_SIZE,
+    SYN_ACK_FLAG,
+    SYN_FLAG,
+    TIMEOUT_LISTEN,
+    WINDOW_SIZE,
+)
 from lib.segment import Segment
 
 
@@ -49,7 +57,7 @@ class Server:
                     print("")
                     break
 
-            except TimeoutError:
+            except:
                 print("[!] Timeout Error for listening client")
 
     def start_file_transfer(self):
@@ -112,7 +120,7 @@ class Server:
                         print(
                             f"[!] [Client {client_addr[0]}:{client_addr[1]}] Recieved Wrong ACK"
                         )
-                except TimeoutError:
+                except:
                     print(
                         f"[!] [Client {client_addr[0]}:{client_addr[1]}] [Timeout] ACK response timeout, resending prev seq num"
                     )
@@ -123,7 +131,7 @@ class Server:
         sendFIN.set_flag(["FIN"])
         self.conn.send_data(sendFIN.get_bytes(), client_addr)
         is_ack = False
-  
+
         # Wait for ack
         while not is_ack:
             try:
@@ -138,8 +146,8 @@ class Server:
                         f"[!] [Client {client_addr[0]}:{client_addr[1]}] Recieved FIN-ACK"
                     )
                     sb += 1
-                    is_ack=True
-            except TimeoutError:
+                    is_ack = True
+            except:
                 print(
                     f"[!] [Client {client_addr[0]}:{client_addr[1]}] [Timeout] ACK response timeout, resending FIN"
                 )
@@ -172,7 +180,7 @@ class Server:
                     self.segment.set_from_bytes(data)
                     seq += 1
 
-                except TimeoutError:
+                except:
                     print(
                         f"[!] [Client {client_addr[0]}:{client_addr[1]}] [Timeout] ACK response timeout, resending SYN"
                     )
@@ -190,9 +198,7 @@ class Server:
                 self.segment.set_flag(["ACK"])
                 self.conn.send_data(self.segment.get_bytes(), client_addr)
                 break
-        print(
-            f"[!] [Client {client_addr[0]}:{client_addr[1]}] Handshake established"
-        )
+        print(f"[!] [Client {client_addr[0]}:{client_addr[1]}] Handshake established")
 
     def get_filename(self):
         if "/" in self.pathfile:
