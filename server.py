@@ -57,7 +57,6 @@ class Server:
                         kwargs={"client_parallel": self.running_thread},
                     )
                     send_file.start()
-                    continue
                 else:
                     self.client_list.append(client_address)
                     print(f"[!] Recieved request from {ip}:{port}")
@@ -125,7 +124,6 @@ class Server:
                     data, response_addr = self.conn.listen_single_segment()
                     segment = Segment()
                     segment.set_from_bytes(data)
-
                     # print("CURRENT SEGMENT: ", segment.get_header())
                     # print("CURRENT_sequence_base: ", sequence_base)
                     if (
