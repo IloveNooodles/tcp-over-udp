@@ -47,25 +47,25 @@ class Client:
                 seq += 1
                 print(f"[!] [Server {server_addr[0]}:{server_addr[1]}] Sending SYN-ACK")
                 end = True
+
         # RECV ACK
         ack = False
         while not ack:
             try:
-                data, server_addr = self.conn.listen_single_segment()
+                data, server_addr = self.conn.listen_single_segment(TIMEOUT_LISTEN)
                 ackFlag = Segment()
                 ackFlag.set_from_bytes(data)
                 if ackFlag.get_flag() == ACK_FLAG:
                     print(f"[!] [Server {server_addr[0]}:{server_addr[1]}] Recieved ACK")
-                    
+                    print(
+                        f"[!] [Server {server_addr[0]}:{server_addr[1]}] Handshake established"
+                    )
                     ack = True
                     break
             except socket_timeout:
                 print(
                     f"[!] [Server {server_addr[0]}:{server_addr[1]}] [Timeout] ACK response timeout"
                 )
-        print(
-                        f"[!] [Server {server_addr[0]}:{server_addr[1]}] Handshake established"
-                    )
 
     def sendACK(self, server_addr, ackNumber):
         response = Segment()
@@ -85,8 +85,8 @@ class Client:
                 data, server_addr = self.conn.listen_single_segment()
                 if server_addr[1] == self.broadcast_port:
                     self.segment.set_from_bytes(data)
-                    print("CURRENT ACK: ", self.segment.get_header())
-                    print("CURRENT_request_number: ", request_number)
+                    # print("CURRENT ACK: ", self.segment.get_header())
+                    # print("CURRENT_request_number: ", request_number)
                     if (
                         self.segment.valid_checksum()
                         and self.segment.get_header()["seq"] == request_number + 1
