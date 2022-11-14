@@ -14,7 +14,7 @@ from lib.constant import (
     WINDOW_SIZE,
 )
 from lib.segment import Segment
-
+from socket import timeout as socket_timeout
 
 class Server:
     def __init__(self):
@@ -57,7 +57,7 @@ class Server:
                     print("")
                     break
 
-            except:
+            except socket_timeout:
                 print("[!] Timeout Error for listening client")
 
     def start_file_transfer(self):
@@ -83,31 +83,35 @@ class Server:
             list_segment.append(segment)
             seq += 1
 
-        window_size = min(num_of_segment, WINDOW_SIZE)
-        sb = 0
+        window_size = min(num_of_segment, WINDOW_SIZE + 1)
+        sequence_base = 0
 
-        while sb < num_of_segment:
-            size_slide = window_size
-            for i in range(size_slide):
+        while sequence_base < num_of_segment:
+            sequence_max = window_size
+            for i in range(sequence_max):
                 print(
-                    f"[!] [Client {client_addr[0]}:{client_addr[1]}] Sending Segment {sb+i+1}"
+                    f"[!] [Client {client_addr[0]}:{client_addr[1]}] Sending Segment {sequence_base+i+1}"
                 )
-                self.conn.send_data(list_segment[i + sb].get_bytes(), client_addr)
-            for i in range(size_slide):
+                if i + sequence_base < num_of_segment:
+                    self.conn.send_data(list_segment[i + sequence_base].get_bytes(), client_addr)
+            for i in range(sequence_max):
                 try:
                     data, response_addr = self.conn.listen_single_segment()
                     segment = Segment()
                     segment.set_from_bytes(data)
+
+                    print("CURRENT SEGMENT: ", segment.get_header())
+                    print("CURRENT_sequence_base: ", sequence_base)
                     if (
                         client_addr[1] == response_addr[1]
                         and segment.get_flag() == ACK_FLAG
-                        and segment.get_header()["ack"] == sb + 1
+                        and segment.get_header()["ack"] == sequence_base + 1
                     ):
                         print(
-                            f"[!] [Client {client_addr[0]}:{client_addr[1]}] Recieved ACK {sb+1}"
+                            f"[!] [Client {client_addr[0]}:{client_addr[1]}] Recieved ACK {sequence_base+1}"
                         )
-                        sb += 1
-                        window_size = min(num_of_segment - sb, WINDOW_SIZE)
+                        sequence_base += 1
+                        window_size = min(num_of_segment - sequence_base, WINDOW_SIZE)
                     elif client_addr[1] != response_addr[1]:
                         print(
                             f"[!] [Client {client_addr[0]}:{client_addr[1]}] Recieved ACK from wrong client"
@@ -120,7 +124,10 @@ class Server:
                         print(
                             f"[!] [Client {client_addr[0]}:{client_addr[1]}] Recieved Wrong ACK"
                         )
-                except:
+                        request_number = segment.get_header()['ack']
+                        sequence_max = (sequence_max - sequence_base) + request_number
+                        sequence_base = request_number
+                except socket_timeout:
                     print(
                         f"[!] [Client {client_addr[0]}:{client_addr[1]}] [Timeout] ACK response timeout, resending prev seq num"
                     )
@@ -145,9 +152,9 @@ class Server:
                     print(
                         f"[!] [Client {client_addr[0]}:{client_addr[1]}] Recieved FIN-ACK"
                     )
-                    sb += 1
+                    sequence_base += 1
                     is_ack = True
-            except:
+            except socket_timeout:
                 print(
                     f"[!] [Client {client_addr[0]}:{client_addr[1]}] [Timeout] ACK response timeout, resending FIN"
                 )
@@ -180,7 +187,7 @@ class Server:
                     self.segment.set_from_bytes(data)
                     seq += 1
 
-                except:
+                except socket_timeout:
                     print(
                         f"[!] [Client {client_addr[0]}:{client_addr[1]}] [Timeout] ACK response timeout, resending SYN"
                     )

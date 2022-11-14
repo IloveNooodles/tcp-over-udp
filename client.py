@@ -2,6 +2,7 @@ from lib.argparse import Parser
 from lib.connection import Connection
 from lib.constant import ACK_FLAG, FIN_FLAG, SYN_ACK_FLAG, SYN_FLAG, TIMEOUT_LISTEN
 from lib.segment import Segment
+from socket import timeout as socket_timeout
 
 
 class Client:
@@ -31,7 +32,7 @@ class Client:
                 data, server_addr = self.conn.listen_single_segment(TIMEOUT_LISTEN)
                 self.segment.set_from_bytes(data)
                 print(f"[!] [Server {server_addr[0]}:{server_addr[1]}] Recieved SYN")
-            except:
+            except socket_timeout:
                 print(
                     f"[!] [Server {server_addr[0]}:{server_addr[1]}] [Timeout] SYN response timeout"
                 )
@@ -49,16 +50,22 @@ class Client:
         # RECV ACK
         ack = False
         while not ack:
-            data, server_addr = self.conn.listen_single_segment()
-            ackFlag = Segment()
-            ackFlag.set_from_bytes(data)
-            if ackFlag.get_flag() == ACK_FLAG:
-                print(f"[!] [Server {server_addr[0]}:{server_addr[1]}] Recieved ACK")
+            try:
+                data, server_addr = self.conn.listen_single_segment()
+                ackFlag = Segment()
+                ackFlag.set_from_bytes(data)
+                if ackFlag.get_flag() == ACK_FLAG:
+                    print(f"[!] [Server {server_addr[0]}:{server_addr[1]}] Recieved ACK")
+                    
+                    ack = True
+                    break
+            except socket_timeout:
                 print(
-                    f"[!] [Server {server_addr[0]}:{server_addr[1]}] Handshake established"
+                    f"[!] [Server {server_addr[0]}:{server_addr[1]}] [Timeout] ACK response timeout"
                 )
-                ack = True
-                break
+        print(
+                        f"[!] [Server {server_addr[0]}:{server_addr[1]}] Handshake established"
+                    )
 
     def sendACK(self, server_addr, ackNumber):
         response = Segment()
@@ -71,38 +78,40 @@ class Client:
 
     def listen_file_transfer(self):
         raw_data = b""
-        rn = 0
+        request_number = 0
         data, server_addr = None, None
         while True:
             try:
                 data, server_addr = self.conn.listen_single_segment()
                 if server_addr[1] == self.broadcast_port:
                     self.segment.set_from_bytes(data)
+                    print("CURRENT ACK: ", self.segment.get_header())
+                    print("CURRENT_request_number: ", request_number)
                     if (
                         self.segment.valid_checksum()
-                        and self.segment.get_header()["seq"] == rn + 1
+                        and self.segment.get_header()["seq"] == request_number + 1
                     ):
                         payload = self.segment.get_payload()
                         raw_data += payload
                         print(
-                            f"[!] [Server {server_addr[0]}:{server_addr[1]}] Recieved Segment {rn+1}"
+                            f"[!] [Server {server_addr[0]}:{server_addr[1]}] Recieved Segment {request_number+1}"
                         )
                         print(
-                            f"[!] [Server {server_addr[0]}:{server_addr[1]}] Sending ACK {rn+1}"
+                            f"[!] [Server {server_addr[0]}:{server_addr[1]}] Sending ACK {request_number+1}"
                         )
-                        self.sendACK(server_addr, rn + 1)
-                        rn += 1
+                        self.sendACK(server_addr, request_number + 1)
+                        request_number += 1
                         continue
                     elif self.segment.get_flag() == FIN_FLAG:
                         print(
                             f"[!] [Server {server_addr[0]}:{server_addr[1]}] Recieved FIN"
                         )
                         break
-                    elif self.segment.get_header()["seq"] < rn + 1:
+                    elif self.segment.get_header()["seq"] < request_number + 1:
                         print(
                             f"[!] [Server {server_addr[0]}:{server_addr[1]}] Recieved Segment {self.segment.get_header()['seq']} [Duplicate]"
                         )
-                    elif self.segment.get_header()["seq"] > rn + 1:
+                    elif self.segment.get_header()["seq"] > request_number + 1:
                         print(
                             f"[!] [Server {server_addr[0]}:{server_addr[1]}] Recieved Segment {self.segment.get_header()['seq']} [Out-Of-Order]"
                         )
@@ -114,18 +123,18 @@ class Client:
                     print(
                         f"[!] [Server {server_addr[0]}:{server_addr[1]}] Recieved Segment {self.segment.get_header()['seq']} [Wrong port]"
                     )
-                self.sendACK(server_addr, rn)
-            except:
+                self.sendACK(server_addr, request_number)
+            except socket_timeout:
                 print(
                     f"[!] [Server {server_addr[0]}:{server_addr[1]}] [Timeout] timeout error, resending prev seq num"
                 )
-                self.sendACK(server_addr, rn)
+                self.sendACK(server_addr, request_number)
 
         # sent FIN-ACK and wait for ACK to tearing down connection
         print(f"[!] [Server {server_addr[0]}:{server_addr[1]}] Sending FIN-ACK")
         # send FIN ACK
         finack = Segment()
-        finack.set_header({"ack": rn + 1, "seq": rn + 1})
+        finack.set_header({"ack": request_number + 1, "seq": request_number + 1})
         finack.set_flag(["FIN", "ACK"])
         self.conn.send_data(finack.get_bytes(), server_addr)
         ack = False
@@ -139,7 +148,7 @@ class Client:
                         f"[!] [Server {server_addr[0]}:{server_addr[1]}] Recieved ACK. Tearing down connection."
                     )
                     ack = True
-            except:
+            except socket_timeout:
                 print(
                     f"[!] [Server {server_addr[0]}:{server_addr[1]}] [Timeout] timeout error, resending FIN ACK"
                 )
