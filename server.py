@@ -40,6 +40,7 @@ class Server:
     def count_segment(self):
         return ceil(self.filesize / PAYLOAD_SIZE)
     def always_listen(self):
+        self.all_clients = {}
         while True:
             try:
                 client = self.conn.listen_single_segment(TIMEOUT_LISTEN)
@@ -54,12 +55,12 @@ class Server:
                     self.all_clients[client_address].append(client[0])
             except socket_timeout:
                 print("[!] Timeout Error for listening client. exiting")
+                break
 
     def listen_for_clients(self):
         print("[!] Listening to broadcast address for clients.")
         while True:
             if (self.is_parallel):
-                self.all_clients = {}
                 always_listen = multiprocessing.Process(target=self.always_listen, args=())
                 always_listen.start()
                 break
