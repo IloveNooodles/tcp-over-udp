@@ -25,8 +25,8 @@ class Parser:
                 help="path to file you want to send",
             )
             args = parser.parse_args()
-            self.broadcast_port = args.broadcast_port
-            self.pathfile_input = args.pathfile_input
+            self.broadcast_port = getattr(args, "broadcast_port")
+            self.pathfile_input = getattr(args, "pathfile_input")
         else:
             parser = argparse.ArgumentParser(
                 description="Client for handling file transfer connection from server"
@@ -50,9 +50,9 @@ class Parser:
                 help="output path location",
             )
             args = parser.parse_args()
-            self.client_port = args.client_port
-            self.broadcast_port = args.broadcast_port
-            self.pathfile_output = args.pathfile_output
+            self.client_port = getattr(args, "client_port")
+            self.broadcast_port = getattr(args, "broadcast_port")
+            self.pathfile_output = getattr(args, "pathfile_output")
 
     def get_values(self):
         if self.is_server:
