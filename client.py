@@ -87,8 +87,10 @@ class Client:
         while True:
             try:
                 data, server_addr = self.conn.listen_single_segment(3)
+                print(len(data))
                 if server_addr[1] == self.broadcast_port:
                     self.segment.set_from_bytes(data)
+                    print(request_number)
                     if (
                         self.segment.valid_checksum()
                         and self.segment.get_header()["seq"] == request_number
@@ -179,6 +181,8 @@ class Client:
         while True:
             try:
                 data, server_addr = self.conn.listen_single_segment()
+                print(len(data))
+                
                 if server_addr[1] == self.broadcast_port:
                     self.segment.set_from_bytes(data)
                     if (

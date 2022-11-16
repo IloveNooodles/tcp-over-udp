@@ -27,6 +27,7 @@ class Server:
         self.client_list: List[Tuple[int, int]] = []
         self.filename = self.get_filename()
         self.is_parallel = False
+        self.breakdown_file()
         print(f"[!] Source file | {self.filename} | {self.filesize} bytes")
 
     def count_segment(self):
@@ -57,9 +58,9 @@ class Server:
         print("[!] Listening to broadcast address for clients.")
         while True:
             if (self.is_parallel):
-                always_listen = multiprocessing.Process(
+                self.always_listenq = multiprocessing.Process(
                     target=self.always_listen, args=())
-                always_listen.start()
+                self.always_listenq.start()
                 break
             else:
                 try:
@@ -83,7 +84,6 @@ class Server:
                     break
 
     def start_file_transfer(self, client_parallel=None):
-        self.breakdown_file()
         if not self.is_parallel:
             for client in self.client_list:
                 self.three_way_handshake(client)
@@ -201,7 +201,6 @@ class Server:
                         is_ack = True
                         if(self.is_parallel):
                             self.all_clients.pop(client_addr)
-                            thread_del = [k for k, v in self.thread_queue.items() if v == client_addr][0]
                 except socket_timeout:
                     print(
                         f"[!] [Client {client_addr[0]}:{client_addr[1]}] [Timeout] ACK response timeout, resending FIN"
@@ -215,6 +214,9 @@ class Server:
             segmentACK = Segment()
             segmentACK.set_flag(["ACK"])
             self.conn.send_data(segmentACK.get_bytes(), client_addr)
+            # if (self.is_parallel):
+            #   if (len(self.all_clients) == 0):
+            #     self.always_listenq.terminate()
     def get_answer(self, client_addr: Tuple[str, int]):
         if (self.is_parallel):
             time_timeout = time.time() + 1
@@ -238,6 +240,7 @@ class Server:
                 header = self.segment.get_header()
                 header["seq"] = 0
                 header["ack"] = 0
+
                 self.conn.send_data(self.segment.get_bytes(), client_addr)
                 try:
                     data, _ = self.get_answer(client_addr)
@@ -247,7 +250,6 @@ class Server:
                     print(
                         f"[!] [Client {client_addr[0]}:{client_addr[1]}] [Timeout] ACK response timeout, resending SYN"
                     )
-                    continue
 
             # ACK only send ack to client no need to add seq num
             elif self.segment.get_flag() == SYN_ACK_FLAG:
@@ -335,6 +337,7 @@ class Server:
         header["seq"] = 2
         header["ack"] = 0
         self.metadata_segment.set_header(header)
+        print("send metadata")
         self.conn.send_data(self.metadata_segment.get_bytes(), client_addr)
 
     def shutdown(self):
