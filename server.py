@@ -251,7 +251,7 @@ class Server:
             # ACK only send ack to client no need to add seq num
             elif self.segment.get_flag() == SYN_ACK_FLAG:
                 print(
-                    f"[!] [Client {client_addr[0]}:{client_addr[1]}] received SYN-ACK"
+                    f"[!] [Client {client_addr[0]}:{client_addr[1]}] Received SYN-ACK"
                 )
                 print(
                     f"[!] [Client {client_addr[0]}:{client_addr[1]}] Sending ACK")

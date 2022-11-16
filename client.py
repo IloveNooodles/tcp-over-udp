@@ -19,7 +19,7 @@ class Client:
             broadcast_port=broadcast_port, port=client_port, is_server=False
         )
         self.segment = Segment()
-        self.file = self.open_file()
+        self.file = self.create_file()
 
     def connect(self):
         self.conn.send_data(
@@ -37,7 +37,7 @@ class Client:
                     TIMEOUT_LISTEN)
                 self.segment.set_from_bytes(data)
                 print(
-                    f"[!] [Server {server_addr[0]}:{server_addr[1]}] received SYN")
+                    f"[!] [Server {server_addr[0]}:{server_addr[1]}] Received SYN")
             except socket_timeout:
                 print(
                     f"[!] [Server {server_addr[0]}:{server_addr[1]}] [Timeout] SYN response timeout"
@@ -65,7 +65,7 @@ class Client:
                 ackFlag.set_from_bytes(data)
                 if ackFlag.get_flag() == ACK_FLAG:
                     print(
-                        f"[!] [Server {server_addr[0]}:{server_addr[1]}] received ACK")
+                        f"[!] [Server {server_addr[0]}:{server_addr[1]}] Received ACK")
                     print(
                         f"[!] [Server {server_addr[0]}:{server_addr[1]}] Handshake established"
                     )
@@ -100,7 +100,7 @@ class Client:
                         payload = self.segment.get_payload()
                         self.file.write(payload)
                         print(
-                            f"[!] [Server {server_addr[0]}:{server_addr[1]}] received Segment {request_number+1}"
+                            f"[!] [Server {server_addr[0]}:{server_addr[1]}] Received Segment {request_number+1}"
                         )
                         print(
                             f"[!] [Server {server_addr[0]}:{server_addr[1]}] Sending ACK {request_number+1}"
@@ -110,24 +110,24 @@ class Client:
                         continue
                     elif self.segment.get_flag() == FIN_FLAG:
                         print(
-                            f"[!] [Server {server_addr[0]}:{server_addr[1]}] received FIN"
+                            f"[!] [Server {server_addr[0]}:{server_addr[1]}] Received FIN"
                         )
                         break
                     elif self.segment.get_header()["seq"] < request_number + 1:
                         print(
-                            f"[!] [Server {server_addr[0]}:{server_addr[1]}] received Segment {self.segment.get_header()['seq']} [Duplicate]"
+                            f"[!] [Server {server_addr[0]}:{server_addr[1]}] Received Segment {self.segment.get_header()['seq']} [Duplicate]"
                         )
                     elif self.segment.get_header()["seq"] > request_number + 1:
                         print(
-                            f"[!] [Server {server_addr[0]}:{server_addr[1]}] received Segment {self.segment.get_header()['seq']} [Out-Of-Order]"
+                            f"[!] [Server {server_addr[0]}:{server_addr[1]}] Received Segment {self.segment.get_header()['seq']} [Out-Of-Order]"
                         )
                     else:
                         print(
-                            f"[!] [Server {server_addr[0]}:{server_addr[1]}] received Segment {self.segment.get_header()['seq']} [Corrupt]"
+                            f"[!] [Server {server_addr[0]}:{server_addr[1]}] Received Segment {self.segment.get_header()['seq']} [Corrupt]"
                         )
                 else:
                     print(
-                        f"[!] [Server {server_addr[0]}:{server_addr[1]}] received Segment {self.segment.get_header()['seq']} [Wrong port]"
+                        f"[!] [Server {server_addr[0]}:{server_addr[1]}] Received Segment {self.segment.get_header()['seq']} [Wrong port]"
                     )
                 self.sendACK(server_addr, request_number)
             except socket_timeout:
@@ -155,12 +155,12 @@ class Client:
                 ackSegment.set_from_bytes(data)
                 if ackSegment.get_flag() == ACK_FLAG:
                     print(
-                        f"[!] [Server {server_addr[0]}:{server_addr[1]}] received ACK. Tearing down connection."
+                        f"[!] [Server {server_addr[0]}:{server_addr[1]}] Received ACK. Tearing down connection."
                     )
                     ack = True
             except socket_timeout:
                 print(
-                    f"[!] [Server {server_addr[0]}:{server_addr[1]}] [Timeout] timeout error, resending FIN ACK"
+                    f"[!] [Server {server_addr[0]}:{server_addr[1]}] [Timeout] timeout error, resending FIN ACK."
                 )
                 self.conn.send_data(finack.get_bytes(), server_addr)
         # Finish get ack from server try to write file
@@ -174,9 +174,9 @@ class Client:
     def receive_metadata(self):
         pass
 
-    def open_file(self):
+    def create_file(self):
         try:
-            file = open(f"out/{self.pathfile_output}", "ab")
+            file = open(f"out/{self.pathfile_output}", "wb")
             return file
         except FileNotFoundError:
             print(f"[!] {self.pathfile_output} doesn't exists. Exiting...")
