@@ -31,7 +31,7 @@ class Client:
         seq = 0
         while not end:
             # SYN-ACK
-            data, server_addr = None, ("localhost", self.broadcast_port)
+            data, server_addr = None, ("127.0.0.1", self.broadcast_port)
             try:
                 data, server_addr = self.conn.listen_single_segment(
                     TIMEOUT_LISTEN)
@@ -93,8 +93,6 @@ class Client:
                 data, server_addr = self.conn.listen_single_segment()
                 if server_addr[1] == self.broadcast_port:
                     self.segment.set_from_bytes(data)
-                    # print("CURRENT ACK: ", self.segment.get_header())
-                    # print("CURRENT_request_number: ", request_number)
                     if (
                         self.segment.valid_checksum()
                         and self.segment.get_header()["seq"] == request_number + 1

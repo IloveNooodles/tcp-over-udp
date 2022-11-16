@@ -2,9 +2,10 @@ import threading
 import multiprocessing
 import time
 import os
+
 from math import ceil
 from socket import timeout as socket_timeout
-from typing import Tuple
+from typing import Dict, List, Tuple
 
 from lib.argparse import Parser
 from lib.connection import Connection
@@ -41,7 +42,7 @@ class Server:
         return ceil(self.filesize / PAYLOAD_SIZE)
 
     def always_listen(self):
-        self.all_clients = {}
+        self.all_clients: Dict[Tuple[int, int], List[Segment]] = {}
         while True:
             try:
                 client = self.conn.listen_single_segment(TIMEOUT_LISTEN)
@@ -101,7 +102,7 @@ class Server:
             self.file_transfer(client_parallel)
 
     def breakdown_file(self):
-        self.list_segment = []
+        self.list_segment: List[Segment] = []
         num_of_segment = self.count_segment()
         # After three way handshake seq num is now 1
         # Flags is 0 for sending data
