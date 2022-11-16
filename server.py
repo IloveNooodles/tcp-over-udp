@@ -195,6 +195,7 @@ class Server:
                         is_ack = True
                         if(self.is_parallel):
                             self.all_clients.pop(client_addr)
+                            thread_del = [k for k, v in self.thread_queue.items() if v == client_addr][0]
                 except socket_timeout:
                     print(
                         f"[!] [Client {client_addr[0]}:{client_addr[1]}] [Timeout] ACK response timeout, resending FIN"
@@ -211,11 +212,11 @@ class Server:
     
     def get_answer(self, client_addr: Tuple[str, int]):
         if (self.is_parallel):
-            time_timeout = time.time() + TIMEOUT_LISTEN
+            time_timeout = time.time() + 1
             while (time.time() < time_timeout):
-                if len(self.all_clients[client_addr]) > 1:
-                    return (self.all_clients[client_addr].pop(1), client_addr)
-            return socket_timeout
+              if len(self.all_clients[client_addr]) > 1:
+                return (self.all_clients[client_addr].pop(1), client_addr)
+            raise socket_timeout
         else:
             return self.conn.listen_single_segment()
 

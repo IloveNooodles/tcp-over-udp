@@ -32,7 +32,7 @@ class Client:
             # SYN-ACK
             data, server_addr = None, ("localhost", self.broadcast_port)
             try:
-                data, server_addr = self.conn.listen_single_segment(TIMEOUT_LISTEN)
+                data, server_addr = self.conn.listen_single_segment()
                 self.segment.set_from_bytes(data)
                 print(f"[!] [Server {server_addr[0]}:{server_addr[1]}] Recieved SYN")
             except socket_timeout:
@@ -52,7 +52,7 @@ class Client:
                 ack = False
                 while not ack:
                   try:
-                      data, server_addr = self.conn.listen_single_segment(TIMEOUT_LISTEN)
+                      data, server_addr = self.conn.listen_single_segment()
                       ackFlag = Segment()
                       ackFlag.set_from_bytes(data)
                       if ackFlag.get_flag() == ACK_FLAG:
