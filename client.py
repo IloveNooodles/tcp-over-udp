@@ -1,4 +1,5 @@
 from socket import timeout as socket_timeout
+import time
 
 from lib.argparse import Parser
 from lib.connection import Connection
@@ -139,6 +140,7 @@ class Client:
         finack.set_flag(["FIN", "ACK"])
         self.conn.send_data(finack.get_bytes(), server_addr)
         ack = False
+        timeout = time.time() + TIMEOUT_LISTEN
         while not ack:
             try:
                 data, server_addr = self.conn.listen_single_segment()
@@ -150,6 +152,11 @@ class Client:
                     )
                     ack = True
             except socket_timeout:
+                if (time.time() > timeout):
+                    print(
+                        f"[!] [Server {server_addr[0]}:{server_addr[1]}] [Timeout] waiting for too long, connection closed."
+                    )
+                    break
                 print(
                     f"[!] [Server {server_addr[0]}:{server_addr[1]}] [Timeout] timeout error, resending FIN ACK"
                 )

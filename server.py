@@ -113,8 +113,8 @@ class Server:
         num_of_segment = len(self.list_segment)
         window_size = min(num_of_segment, WINDOW_SIZE + 1)
         sequence_base = 0
-
-        while sequence_base < num_of_segment:
+        reset_conn = False
+        while sequence_base < num_of_segment and not reset_conn:
             sequence_max = window_size
             for i in range(sequence_max):
                 print(
@@ -145,6 +145,11 @@ class Server:
                         print(
                             f"[!] [Client {client_addr[0]}:{client_addr[1]}] Recieved ACK from wrong client"
                         )
+                    elif segment.get_flag() == SYN_ACK_FLAG:
+                        print(
+                            f"[!] [Client {client_addr[0]}:{client_addr[1]}] Recieved SYN-ACK, resetting connection"
+                        )
+                        reset_conn = True
                     elif segment.get_flag() != ACK_FLAG:
                         print(
                             f"[!] [Client {client_addr[0]}:{client_addr[1]}] Recieved wrong flag"
@@ -160,46 +165,49 @@ class Server:
                     print(
                         f"[!] [Client {client_addr[0]}:{client_addr[1]}] [Timeout] ACK response timeout, resending prev seq num"
                     )
-        print(
-            f"[!] [Client {client_addr[0]}:{client_addr[1]}] File transfer complete, sending FIN..."
-        )
-        sendFIN = Segment()
-        sendFIN.set_flag(["FIN"])
-        self.conn.send_data(sendFIN.get_bytes(), client_addr)
-        is_ack = False
+        if reset_conn:
+            self.three_way_handshake(client_addr)
+            self.send_metadata()
+            self.file_transfer(client_addr)
+        else:
+            print(
+                f"[!] [Client {client_addr[0]}:{client_addr[1]}] File transfer complete, sending FIN..."
+            )
+            sendFIN = Segment()
+            sendFIN.set_flag(["FIN"])
+            self.conn.send_data(sendFIN.get_bytes(), client_addr)
+            is_ack = False
 
-        # Wait for ack
-        while not is_ack:
-            try:
-                data, response_addr = self.get_answer(client_addr)
-                segment = Segment()
-                segment.set_from_bytes(data)
-                if (
-                    client_addr[1] == response_addr[1]
-                    and segment.get_flag() == FIN_ACK_FLAG
-                ):
+            # Wait for ack
+            while not is_ack:
+                try:
+                    data, response_addr = self.get_answer(client_addr)
+                    segment = Segment()
+                    segment.set_from_bytes(data)
+                    if (
+                        client_addr[1] == response_addr[1]
+                        and segment.get_flag() == FIN_ACK_FLAG
+                    ):
+                        print(
+                            f"[!] [Client {client_addr[0]}:{client_addr[1]}] Recieved FIN-ACK"
+                        )
+                        sequence_base += 1
+                        is_ack = True
+                        if(self.is_parallel):
+                            self.all_clients.pop(client_addr)
+                except socket_timeout:
                     print(
-                        f"[!] [Client {client_addr[0]}:{client_addr[1]}] Recieved FIN-ACK"
+                        f"[!] [Client {client_addr[0]}:{client_addr[1]}] [Timeout] ACK response timeout, resending FIN"
                     )
-                    sequence_base += 1
-                    is_ack = True
-                    if(self.is_parallel):
-                        self.all_clients.pop(client_addr)
-                        delete_thread = list(self.thread_queue.keys()[list(self.thread_queue.values()).index(client_addr)])
-                        delete_thread.terminate()
-            except socket_timeout:
-                print(
-                    f"[!] [Client {client_addr[0]}:{client_addr[1]}] [Timeout] ACK response timeout, resending FIN"
-                )
-                self.conn.send_data(sendFIN.get_bytes(), client_addr)
+                    self.conn.send_data(sendFIN.get_bytes(), client_addr)
 
-        # send ACK and tear down connection
-        print(
-            f"[!] [Client {client_addr[0]}:{client_addr[1]}] Sending ACK Tearing down connection."
-        )
-        segmentACK = Segment()
-        segmentACK.set_flag(["ACK"])
-        self.conn.send_data(segmentACK.get_bytes(), client_addr)
+            # send ACK and tear down connection
+            print(
+                f"[!] [Client {client_addr[0]}:{client_addr[1]}] Sending ACK Tearing down connection."
+            )
+            segmentACK = Segment()
+            segmentACK.set_flag(["ACK"])
+            self.conn.send_data(segmentACK.get_bytes(), client_addr)
     
     def get_answer(self, client_addr: Tuple[str, int]):
         if (self.is_parallel):
