@@ -28,7 +28,6 @@ class Client:
 
     def three_way_handshake(self):
         end = False
-        seq = 0
         while not end:
             # SYN-ACK
             data, server_addr = None, ("127.0.0.1", self.broadcast_port)
@@ -47,10 +46,9 @@ class Client:
             if self.segment.get_flag() == SYN_FLAG:
                 self.segment.set_flag(["SYN", "ACK"])
                 header = self.segment.get_header()
-                header["ack"] = header["seq"] + 1
-                header["seq"] = seq
+                header["ack"] = 1
+                header["seq"] = 0
                 self.conn.send_data(self.segment.get_bytes(), server_addr)
-                seq += 1
                 print(
                     f"[!] [Server {server_addr[0]}:{server_addr[1]}] Sending SYN-ACK")
                 end = True
@@ -86,7 +84,7 @@ class Client:
         self.conn.send_data(response.get_bytes(), server_addr)
 
     def listen_file_transfer(self):
-        request_number = 0
+        request_number = 3
         data, server_addr = None, None
         while True:
             try:
@@ -95,17 +93,17 @@ class Client:
                     self.segment.set_from_bytes(data)
                     if (
                         self.segment.valid_checksum()
-                        and self.segment.get_header()["seq"] == request_number + 1
+                        and self.segment.get_header()["seq"] == request_number
                     ):
                         payload = self.segment.get_payload()
                         self.file.write(payload)
                         print(
-                            f"[!] [Server {server_addr[0]}:{server_addr[1]}] Received Segment {request_number+1}"
+                            f"[!] [Server {server_addr[0]}:{server_addr[1]}] Received Segment {request_number}"
                         )
                         print(
-                            f"[!] [Server {server_addr[0]}:{server_addr[1]}] Sending ACK {request_number+1}"
+                            f"[!] [Server {server_addr[0]}:{server_addr[1]}] Sending ACK {request_number}"
                         )
-                        self.sendACK(server_addr, request_number + 1)
+                        self.sendACK(server_addr, request_number)
                         request_number += 1
                         continue
                     elif self.segment.get_flag() == FIN_FLAG:
@@ -113,11 +111,11 @@ class Client:
                             f"[!] [Server {server_addr[0]}:{server_addr[1]}] Received FIN"
                         )
                         break
-                    elif self.segment.get_header()["seq"] < request_number + 1:
+                    elif self.segment.get_header()["seq"] < request_number:
                         print(
                             f"[!] [Server {server_addr[0]}:{server_addr[1]}] Received Segment {self.segment.get_header()['seq']} [Duplicate]"
                         )
-                    elif self.segment.get_header()["seq"] > request_number + 1:
+                    elif self.segment.get_header()["seq"] > request_number:
                         print(
                             f"[!] [Server {server_addr[0]}:{server_addr[1]}] Received Segment {self.segment.get_header()['seq']} [Out-Of-Order]"
                         )
@@ -142,8 +140,8 @@ class Client:
         # send FIN ACK
         finack = Segment()
         finack.set_header({
-            "ack": request_number + 1,
-            "seq": request_number + 1
+            "ack": request_number,
+            "seq": request_number
         })
         finack.set_flag(["FIN", "ACK"])
         self.conn.send_data(finack.get_bytes(), server_addr)
@@ -171,8 +169,46 @@ class Client:
             f"[!] [Server {server_addr[0]}:{server_addr[1]}] Writing file to out/{self.pathfile_output}"
         )
 
-    def receive_metadata(self):
-        pass
+    def listen_metadata_transfer(self):
+        request_number = 2
+        data, server_addr = None, None
+        while True:
+            try:
+                data, server_addr = self.conn.listen_single_segment()
+                if server_addr[1] == self.broadcast_port:
+                    self.segment.set_from_bytes(data)
+                    if (
+                        self.segment.valid_checksum()
+                        and self.segment.get_header()["seq"] == request_number
+                    ):
+                        payload = self.segment.get_payload()
+                        metadata = payload.decode().split(",")
+                        print(
+                            f"[!] [Server {server_addr[0]}:{server_addr[1]}] Received Filename: {metadata[0]}, File Extension: {metadata[1]}, File Size: {metadata[2]}"
+                        )
+                        break
+                    elif self.segment.get_header()["seq"] < request_number:
+                        print(
+                            f"[!] [Server {server_addr[0]}:{server_addr[1]}] Received Segment {self.segment.get_header()['seq']} [Duplicate]"
+                        )
+                    elif self.segment.get_header()["seq"] > request_number:
+                        print(
+                            f"[!] [Server {server_addr[0]}:{server_addr[1]}] Received Segment {self.segment.get_header()['seq']} [Out-Of-Order]"
+                        )
+                    else:
+                        print(
+                            f"[!] [Server {server_addr[0]}:{server_addr[1]}] Received Segment {self.segment.get_header()['seq']} [Corrupt]"
+                        )
+                else:
+                    print(
+                        f"[!] [Server {server_addr[0]}:{server_addr[1]}] Received Segment {self.segment.get_header()['seq']} [Wrong port]"
+                    )
+                self.sendACK(server_addr, request_number)
+            except socket_timeout:
+                print(
+                    f"[!] [Server {server_addr[0]}:{server_addr[1]}] [Timeout] timeout error, resending prev seq num"
+                )
+                self.sendACK(server_addr, request_number)
 
     def create_file(self):
         try:
@@ -191,6 +227,6 @@ if __name__ == "__main__":
     main = Client()
     main.connect()
     main.three_way_handshake()
-    main.receive_metadata()
+    main.listen_metadata_transfer()
     main.listen_file_transfer()
     main.shutdown()

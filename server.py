@@ -94,11 +94,11 @@ class Server:
         if not self.is_parallel:
             for client in self.client_list:
                 self.three_way_handshake(client)
-                self.send_metadata()
+                self.send_metadata(client)
                 self.file_transfer(client)
         else:
             self.three_way_handshake(client_parallel)
-            self.send_metadata()
+            self.send_metadata(client_parallel)
             self.file_transfer(client_parallel)
 
     def breakdown_file(self):
@@ -106,34 +106,35 @@ class Server:
         num_of_segment = self.count_segment()
         # After three way handshake seq num is now 1
         # Flags is 0 for sending data
-        seq = 1
         for i in range(num_of_segment):
             segment = Segment()
             data_to_set = self.get_filechunk(i)
             segment.set_payload(data_to_set)
             header = segment.get_header()
-            header["seq"] = seq
+            header["seq"] = i + 3
             header["ack"] = 0
             segment.set_header(header)
             self.list_segment.append(segment)
-            seq += 1
 
     def file_transfer(self, client_addr: Tuple[str, int]):
         # File transfer, server-side, Send file to 1 client
-        num_of_segment = len(self.list_segment)
+        # Sequence number 0 for SYN
+        # Sequence number 1 for ACK
+        # Sequence number 2 for Metadata
+        num_of_segment = len(self.list_segment) + 3
         window_size = min(num_of_segment, WINDOW_SIZE + 1)
-        sequence_base = 0
+        sequence_base = 3
 
         while sequence_base < num_of_segment:
             sequence_max = window_size
             for i in range(sequence_max):
                 print(
-                    f"[!] [Client {client_addr[0]}:{client_addr[1]}] Sending Segment {sequence_base+i+1}"
+                    f"[!] [Client {client_addr[0]}:{client_addr[1]}] Sending Segment {sequence_base + i}"
                 )
                 if i + sequence_base < num_of_segment:
                     self.conn.send_data(
-                        self.list_segment[i +
-                                          sequence_base].get_bytes(), client_addr
+                        self.list_segment[i + sequence_base -
+                                          3].get_bytes(), client_addr
                     )
             for i in range(sequence_max):
                 try:
@@ -144,10 +145,10 @@ class Server:
                     if (
                         client_addr[1] == response_addr[1]
                         and segment.get_flag() == ACK_FLAG
-                        and segment.get_header()["ack"] == sequence_base + 1
+                        and segment.get_header()["ack"] == sequence_base
                     ):
                         print(
-                            f"[!] [Client {client_addr[0]}:{client_addr[1]}] received ACK {sequence_base+1}"
+                            f"[!] [Client {client_addr[0]}:{client_addr[1]}] received ACK {sequence_base}"
                         )
                         sequence_base += 1
                         window_size = min(
@@ -226,20 +227,18 @@ class Server:
             f"[!] [Client {client_addr[0]}:{client_addr[1]}] Initiating three way handshake..."
         )
         self.segment.set_flag(["SYN"])
-        seq = 0
         while True:
             # SYN
             if self.segment.get_flag() == SYN_FLAG:
                 print(
                     f"[!] [Client {client_addr[0]}:{client_addr[1]}] Sending SYN")
                 header = self.segment.get_header()
-                header["seq"] = seq
+                header["seq"] = 0
                 header["ack"] = 0
                 self.conn.send_data(self.segment.get_bytes(), client_addr)
                 try:
-                    data, address = self.get_answer(client_addr)
+                    data, _ = self.get_answer(client_addr)
                     self.segment.set_from_bytes(data)
-                    seq += 1
 
                 except socket_timeout:
                     print(
@@ -255,7 +254,8 @@ class Server:
                 print(
                     f"[!] [Client {client_addr[0]}:{client_addr[1]}] Sending ACK")
                 header = self.segment.get_header()
-                header["ack"] = header["seq"]
+                header["seq"] = 1
+                header["ack"] = 1
                 self.segment.set_header(header)
                 self.segment.set_flag(["ACK"])
                 self.conn.send_data(self.segment.get_bytes(), client_addr)
@@ -272,8 +272,11 @@ class Server:
 
         return self.pathfile
 
-    def get_file_ext(self):
+    def get_extension_part(self):
         return self.filename.split(".")[-1]
+
+    def get_name_part(self):
+        return self.filename.split(".")[0]
 
     def open_file(self):
         try:
@@ -317,14 +320,19 @@ class Server:
         if choice == "y":
             self.is_parallel = True
 
-    def send_metadata(self):
-        metadata_segment = Segment()
-        metadata = b""
-        filename = self.filename
-        extension = self.get_file_ext()
+    def send_metadata(self, client_addr: Tuple[str, int]):
+        self.metadata_segment = Segment()
+        filename = self.get_name_part()
+        extension = self.get_extension_part()
         filesize = self.filesize
-        metadata += filename.encode() + extension.encode() + str(filesize).encode()
-        metadata_segment.set_payload(metadata)
+        metadata = filename.encode() + ",".encode() + extension.encode() + \
+            ",".encode() + str(filesize).encode()
+        self.metadata_segment.set_payload(metadata)
+        header = self.metadata_segment.get_header()
+        header["seq"] = 2
+        header["ack"] = 0
+        self.metadata_segment.set_header(header)
+        self.conn.send_data(self.metadata_segment.get_bytes(), client_addr)
 
     def shutdown(self):
         self.file.close()
