@@ -25,14 +25,14 @@ from lib.segment import Segment
 class Server:
     def __init__(self):
         args = Parser(is_server=True)
-        broadcast_port, pathfile_input = args.broadcast_port, args.pathfile_input
-        self.broadcast_port = broadcast_port
-        self.pathfile = pathfile_input
+        broadcast_port, pathfile_input = args.get_values()
+        self.broadcast_port: str = broadcast_port
+        self.pathfile: str = pathfile_input
         self.conn = Connection(broadcast_port=broadcast_port, is_server=True)
         self.file = self.open_file()
         self.filesize = self.get_filesize()
         self.segment = Segment()
-        self.client_list = []
+        self.client_list: List[Tuple[int, int]] = []
         self.filename = self.get_filename()
         self.is_parallel = False
         self.running_thread = None
@@ -140,8 +140,7 @@ class Server:
                     data, response_addr = self.get_answer(client_addr)
                     segment = Segment()
                     segment.set_from_bytes(data)
-                    # print("CURRENT SEGMENT: ", segment.get_header())
-                    # print("CURRENT_sequence_base: ", sequence_base)
+
                     if (
                         client_addr[1] == response_addr[1]
                         and segment.get_flag() == ACK_FLAG
@@ -275,17 +274,6 @@ class Server:
 
     def get_file_ext(self):
         return self.filename.split(".")[-1]
-
-    def get_filedata(self):
-        try:
-            file = open(f"{self.pathfile}", "rb")
-            data = file.read()
-            filesize = len(data)
-            file.close()
-            return data, filesize
-        except FileNotFoundError:
-            print(f"[!] {self.pathfile} doesn't exists. Exiting...")
-            exit(1)
 
     def open_file(self):
         try:

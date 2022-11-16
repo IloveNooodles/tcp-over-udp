@@ -12,9 +12,9 @@ class Client:
     def __init__(self):
         args = Parser(is_server=False)
         client_port, broadcast_port, pathfile_output = args.get_values()
-        self.client_port = client_port
-        self.broadcast_port = broadcast_port
-        self.pathfile_output = pathfile_output.split("/")[-1]
+        self.client_port: str = client_port
+        self.broadcast_port: str = broadcast_port
+        self.pathfile_output: str = pathfile_output.split("/")[-1]
         self.conn = Connection(
             broadcast_port=broadcast_port, port=client_port, is_server=False
         )
