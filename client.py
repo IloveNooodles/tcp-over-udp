@@ -178,45 +178,32 @@ class Client:
     def listen_metadata_transfer(self):
         request_number = 2
         data, server_addr = None, None
-        while True:
-            try:
-                data, server_addr = self.conn.listen_single_segment()
-                print(len(data))
-                
-                if server_addr[1] == self.broadcast_port:
-                    self.segment.set_from_bytes(data)
-                    if (
-                        self.segment.valid_checksum()
-                        and self.segment.get_header()["seq"] == request_number
-                    ):
-                        payload = self.segment.get_payload()
-                        metadata = payload.decode().split(",")
-                        print(
-                            f"[!] [Server {server_addr[0]}:{server_addr[1]}] Received Filename: {metadata[0]}, File Extension: {metadata[1]}, File Size: {metadata[2]}"
-                        )
-                        break
-                    elif self.segment.get_header()["seq"] < request_number:
-                        print(
-                            f"[!] [Server {server_addr[0]}:{server_addr[1]}] Received Segment {self.segment.get_header()['seq']} [Duplicate]"
-                        )
-                    elif self.segment.get_header()["seq"] > request_number:
-                        print(
-                            f"[!] [Server {server_addr[0]}:{server_addr[1]}] Received Segment {self.segment.get_header()['seq']} [Out-Of-Order]"
-                        )
-                    else:
-                        print(
-                            f"[!] [Server {server_addr[0]}:{server_addr[1]}] Received Segment {self.segment.get_header()['seq']} [Corrupt]"
-                        )
+        try:
+            data, server_addr = self.conn.listen_single_segment(5)
+            if server_addr[1] == self.broadcast_port:
+                self.segment.set_from_bytes(data)
+                if (
+                    self.segment.valid_checksum()
+                    and self.segment.get_header()["seq"] == request_number
+                ):
+                    payload = self.segment.get_payload()
+                    metadata = payload.decode().split(",")
+                    print(
+                        f"[!] [Server {server_addr[0]}:{server_addr[1]}] Received Filename: {metadata[0]}, File Extension: {metadata[1]}, File Size: {metadata[2]}"
+                    )
                 else:
                     print(
-                        f"[!] [Server {server_addr[0]}:{server_addr[1]}] Received Segment {self.segment.get_header()['seq']} [Wrong port]"
-                    )
-                self.sendACK(server_addr, request_number)
-            except socket_timeout:
+                        f"[!] [Server {server_addr[0]}:{server_addr[1]}] Received Segment {self.segment.get_header()['seq']} [Not a Metadata]")
+            else:
                 print(
-                    f"[!] [Server {server_addr[0]}:{server_addr[1]}] [Timeout] timeout error, resending prev seq num"
+                    f"[!] [Server {server_addr[0]}:{server_addr[1]}] Received Segment {self.segment.get_header()['seq']} [Wrong port]"
                 )
-                self.sendACK(server_addr, request_number)
+            print(f"[!] [Server {server_addr[0]}:{server_addr[1]}] Force listening file transfer")
+        except socket_timeout:
+            print(
+                f"[!] [Server {server_addr[0]}:{server_addr[1]}] [Timeout] timeout error, resending prev seq num"
+            )
+            print(f"[!] [Server {server_addr[0]}:{server_addr[1]}] Force listening file transfer")
 
     def create_file(self):
         try:

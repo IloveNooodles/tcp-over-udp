@@ -337,7 +337,7 @@ class Server:
         header["seq"] = 2
         header["ack"] = 0
         self.metadata_segment.set_header(header)
-        print("send metadata")
+        print(f"[!] [Client {client_addr[0]}:{client_addr[1]}] Sending metadata")
         self.conn.send_data(self.metadata_segment.get_bytes(), client_addr)
 
     def shutdown(self):
