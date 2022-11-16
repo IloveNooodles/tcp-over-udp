@@ -49,6 +49,8 @@ class Client:
                               f"[!] [Server {server_addr[0]}:{server_addr[1]}] Handshake established"
                           )
                     break
+                else:
+                    print(f"[!] [Server {server_addr[0]}:{server_addr[1]}] Segment Received before Connection, resetting connection")
             except socket_timeout:
                 if (self.segment.get_flag() == SYN_ACK_FLAG):
                     print(
@@ -187,9 +189,9 @@ class Client:
             print(f"[!] [Server {server_addr[0]}:{server_addr[1]}] Force listening file transfer")
         except socket_timeout:
             print(
-                f"[!] [Server {server_addr[0]}:{server_addr[1]}] [Timeout] timeout error, resending prev seq num"
+                f"[!] [Server {'127.0.0.1':{self.broadcast_port}}] [Timeout] timeout error, resending prev seq num"
             )
-            print(f"[!] [Server {server_addr[0]}:{server_addr[1]}] Force listening file transfer")
+            print(f"[!] [Server {'127.0.0.1':{self.broadcast_port}}] Force listening file transfer")
 
     def create_file(self):
         try:

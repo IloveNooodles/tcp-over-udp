@@ -145,15 +145,12 @@ class Server:
                         print(
                             f"[!] [Client {client_addr[0]}:{client_addr[1]}] Received ACK from wrong client"
                         )
-                    elif segment.get_flag() == SYN_ACK_FLAG:
-                        print(
-                            f"[!] [Client {client_addr[0]}:{client_addr[1]}] Recieved SYN-ACK, resetting connection"
-                        )
-                        reset_conn = True
                     elif segment.get_flag() != ACK_FLAG:
                         print(
-                            f"[!] [Client {client_addr[0]}:{client_addr[1]}] Received wrong flag"
+                            f"[!] [Client {client_addr[0]}:{client_addr[1]}] Recieved Wrong Flag, resetting connection"
                         )
+                        reset_conn = True
+
                     else:
                         print(
                             f"[!] [Client {client_addr[0]}:{client_addr[1]}] Received Wrong ACK"
