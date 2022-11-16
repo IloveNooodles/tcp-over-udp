@@ -1,22 +1,14 @@
+import multiprocessing
 import threading
-import multiprocessing 
+import time
 from math import ceil
 from socket import timeout as socket_timeout
-import time
 from typing import Tuple
 
 from lib.argparse import Parser
 from lib.connection import Connection
-from lib.constant import (
-    ACK_FLAG,
-    FIN_ACK_FLAG,
-    PAYLOAD_SIZE,
-    SEGMENT_SIZE,
-    SYN_ACK_FLAG,
-    SYN_FLAG,
-    TIMEOUT_LISTEN,
-    WINDOW_SIZE,
-)
+from lib.constant import (ACK_FLAG, FIN_ACK_FLAG, PAYLOAD_SIZE, SEGMENT_SIZE,
+                          SYN_ACK_FLAG, SYN_FLAG, TIMEOUT_LISTEN, WINDOW_SIZE)
 from lib.segment import Segment
 
 
@@ -34,13 +26,14 @@ class Server:
         self.client_list = []
         self.filename = self.get_filename()
         self.is_parallel = False
-        self.running_thread = None
         print(f"[!] Source file | {self.filename} | {self.filesize} bytes")
 
     def count_segment(self):
         return ceil(self.filesize / PAYLOAD_SIZE)
+  
     def always_listen(self):
         self.all_clients = {}
+        self.thread_queue = {}
         while True:
             try:
                 client = self.conn.listen_single_segment(TIMEOUT_LISTEN)
@@ -51,6 +44,7 @@ class Server:
                     self.all_clients[client_address] = [client[0]]
                     new_transfer = threading.Thread(target=self.start_file_transfer, kwargs={"client_parallel": client_address})
                     new_transfer.start()
+                    self.thread_queue[new_transfer] = client_address
                 else: #connection already established
                     self.all_clients[client_address].append(client[0])
             except socket_timeout:
@@ -162,7 +156,7 @@ class Server:
                         request_number = segment.get_header()["ack"]
                         sequence_max = (sequence_max - sequence_base) + request_number
                         sequence_base = request_number
-                except socket_timeout:
+                except:
                     print(
                         f"[!] [Client {client_addr[0]}:{client_addr[1]}] [Timeout] ACK response timeout, resending prev seq num"
                     )
@@ -191,6 +185,8 @@ class Server:
                     is_ack = True
                     if(self.is_parallel):
                         self.all_clients.pop(client_addr)
+                        delete_thread = list(self.thread_queue.keys()[list(self.thread_queue.values()).index(client_addr)])
+                        delete_thread.terminate()
             except socket_timeout:
                 print(
                     f"[!] [Client {client_addr[0]}:{client_addr[1]}] [Timeout] ACK response timeout, resending FIN"
@@ -214,6 +210,7 @@ class Server:
             return socket_timeout
         else:
             return self.conn.listen_single_segment()
+
     def three_way_handshake(self, client_addr: Tuple[str, int]) -> bool:
         print(
             f"[!] [Client {client_addr[0]}:{client_addr[1]}] Initiating three way handshake..."
@@ -316,4 +313,3 @@ if __name__ == "__main__":
     main.listen_for_clients()
     if not main.is_parallel:
         main.start_file_transfer()
-    main.shutdown()
