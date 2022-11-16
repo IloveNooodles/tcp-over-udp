@@ -35,33 +35,28 @@ class Server:
 
     def always_listen(self):
         self.all_clients: Dict[Tuple[str, int], List[Segment]] = {}
-        self.thread_queue = {}
         while True:
             try:
-                client = self.conn.listen_single_segment(TIMEOUT_LISTEN)
+                client = self.conn.listen_single_segment(10)
                 client_address = client[1]
                 ip, port = client_address
                 if (client_address not in self.all_clients):
                     print(f"[!] Received request from {ip}:{port}")
-                    self.all_clients[client_address] = [client[0]]
+                    self.all_clients[client_address] = []
                     new_transfer = threading.Thread(target=self.start_file_transfer, kwargs={
                                                     "client_parallel": client_address})
                     new_transfer.start()
-                    self.thread_queue[new_transfer] = client_address
                 else: #connection already established
                     self.all_clients[client_address].append(client[0])
             except socket_timeout:
                 print("[!] Timeout Error for listening client. exiting")
-                break
+                exit(0)
 
     def listen_for_clients(self):
         print("[!] Listening to broadcast address for clients.")
         while True:
             if (self.is_parallel):
-                self.always_listenq = multiprocessing.Process(
-                    target=self.always_listen, args=())
-                self.always_listenq.start()
-                break
+                self.always_listen()
             else:
                 try:
                     client = self.conn.listen_single_segment(TIMEOUT_LISTEN)
@@ -214,15 +209,13 @@ class Server:
             segmentACK = Segment()
             segmentACK.set_flag(["ACK"])
             self.conn.send_data(segmentACK.get_bytes(), client_addr)
-            # if (self.is_parallel):
-            #   if (len(self.all_clients) == 0):
-            #     self.always_listenq.terminate()
+
     def get_answer(self, client_addr: Tuple[str, int]):
         if (self.is_parallel):
             time_timeout = time.time() + 1
             while (time.time() < time_timeout):
-                if len(self.all_clients[client_addr]) > 1:
-                    return (self.all_clients[client_addr].pop(1), client_addr)
+                if len(self.all_clients[client_addr]) > 0:
+                    return (self.all_clients[client_addr].pop(0), client_addr)
             raise socket_timeout
         else:
             return self.conn.listen_single_segment()

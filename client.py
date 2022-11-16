@@ -28,49 +28,37 @@ class Client:
         )
 
     def three_way_handshake(self):
-        end = False
-        seq = 0
-        while not end:
-            # SYN-ACK
+        while True:
             data, server_addr = None, ("127.0.0.1", self.broadcast_port)
             try:
                 data, server_addr = self.conn.listen_single_segment()
                 self.segment.set_from_bytes(data)
-                print(
-                    f"[!] [Server {server_addr[0]}:{server_addr[1]}] Received SYN")
-            except socket_timeout:
-                print(
-                    f"[!] [Server {server_addr[0]}:{server_addr[1]}] [Timeout] SYN response timeout"
-                )
-                continue
-
-            if self.segment.get_flag() == SYN_FLAG:
-                self.segment.set_flag(["SYN", "ACK"])
-                header = self.segment.get_header()
-                header["ack"] = header["seq"] + 1
-                header["seq"] = seq
-                seq += 1
-                print(f"[!] [Server {server_addr[0]}:{server_addr[1]}] Sending SYN-ACK")
-                self.conn.send_data(self.segment.get_bytes(), server_addr)
-                ack = False
-                while not ack:
-                  try:
-                      data, server_addr = self.conn.listen_single_segment()
-                      ackFlag = Segment()
-                      ackFlag.set_from_bytes(data)
-                      if ackFlag.get_flag() == ACK_FLAG:
-                          print(f"[!] [Server {server_addr[0]}:{server_addr[1]}] Recieved ACK")
-                          print(
+                if self.segment.get_flag() == SYN_FLAG:
+                    self.segment.set_flag(["SYN", "ACK"])
+                    header = self.segment.get_header()
+                    header["ack"] = header["seq"] + 1
+                    header["seq"] = 0
+                    print(f"[!] [Server {server_addr[0]}:{server_addr[1]}] Sending SYN-ACK")
+                    self.conn.send_data(self.segment.get_bytes(), server_addr)
+                elif self.segment.get_flag() == SYN_ACK_FLAG:
+                    print(f"[!] [Server {server_addr[0]}:{server_addr[1]}] Resending SYN-ACK")
+                    self.conn.send_data(self.segment.get_bytes(), server_addr)
+                elif self.segment.get_flag() == ACK_FLAG:
+                    print(f"[!] [Server {server_addr[0]}:{server_addr[1]}] Received ACK")
+                    print(
                               f"[!] [Server {server_addr[0]}:{server_addr[1]}] Handshake established"
                           )
-                          end = True
-                          ack = True
-                          break
-                  except socket_timeout:
-                      print(
-                          f"[!] [Server {server_addr[0]}:{server_addr[1]}] [Timeout] ACK response timeout"
-                      )
-                      self.conn.send_data(self.segment.get_bytes(), server_addr)
+                    break
+            except socket_timeout:
+                if (self.segment.get_flag() == SYN_ACK_FLAG):
+                    print(
+                        f"[!] [Server {server_addr[0]}:{server_addr[1]}] [Timeout] ACK response timeout"
+                    )
+                else:
+                    print(
+                    f"[!] [Server {server_addr[0]}:{server_addr[1]}] [Timeout] SYN response timeout"
+                    )
+                self.conn.send_data(self.segment.get_bytes(), server_addr)
 
     def sendACK(self, server_addr, ackNumber):
         response = Segment()
@@ -87,10 +75,8 @@ class Client:
         while True:
             try:
                 data, server_addr = self.conn.listen_single_segment(3)
-                print(len(data))
                 if server_addr[1] == self.broadcast_port:
                     self.segment.set_from_bytes(data)
-                    print(request_number)
                     if (
                         self.segment.valid_checksum()
                         and self.segment.get_header()["seq"] == request_number
