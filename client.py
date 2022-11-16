@@ -29,6 +29,7 @@ class Client:
 
     def three_way_handshake(self):
         end = False
+        seq = 0
         while not end:
             # SYN-ACK
             data, server_addr = None, ("127.0.0.1", self.broadcast_port)
@@ -75,7 +76,7 @@ class Client:
         response = Segment()
         response.set_flag(["ACK"])
         header = response.get_header()
-        header["seq"] = 0
+        header["seq"] = ackNumber - 1
         header["ack"] = ackNumber
         response.set_header(header)
         self.conn.send_data(response.get_bytes(), server_addr)
@@ -85,7 +86,7 @@ class Client:
         data, server_addr = None, None
         while True:
             try:
-                data, server_addr = self.conn.listen_single_segment()
+                data, server_addr = self.conn.listen_single_segment(3)
                 if server_addr[1] == self.broadcast_port:
                     self.segment.set_from_bytes(data)
                     if (
@@ -98,10 +99,10 @@ class Client:
                             f"[!] [Server {server_addr[0]}:{server_addr[1]}] Received Segment {request_number}"
                         )
                         print(
-                            f"[!] [Server {server_addr[0]}:{server_addr[1]}] Sending ACK {request_number}"
+                            f"[!] [Server {server_addr[0]}:{server_addr[1]}] Sending ACK {request_number + 1}"
                         )
-                        self.sendACK(server_addr, request_number)
                         request_number += 1
+                        self.sendACK(server_addr, request_number)
                         continue
                     elif self.segment.get_flag() == FIN_FLAG:
                         print(

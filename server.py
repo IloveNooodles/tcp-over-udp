@@ -105,7 +105,7 @@ class Server:
             segment.set_payload(data_to_set)
             header = segment.get_header()
             header["seq"] = i + 3
-            header["ack"] = 0
+            header["ack"] = 3
             segment.set_header(header)
             self.list_segment.append(segment)
 
@@ -115,7 +115,7 @@ class Server:
         # Sequence number 1 for ACK
         # Sequence number 2 for Metadata
         num_of_segment = len(self.list_segment) + 3
-        window_size = min(num_of_segment, WINDOW_SIZE + 1)
+        window_size = min(num_of_segment, WINDOW_SIZE)
         sequence_base = 3
         reset_conn = False
         while sequence_base < num_of_segment and not reset_conn:
@@ -138,10 +138,10 @@ class Server:
                     if (
                         client_addr[1] == response_addr[1]
                         and segment.get_flag() == ACK_FLAG
-                        and segment.get_header()["ack"] == sequence_base
+                        and segment.get_header()["ack"] == sequence_base + 1
                     ):
                         print(
-                            f"[!] [Client {client_addr[0]}:{client_addr[1]}] Received ACK {sequence_base}"
+                            f"[!] [Client {client_addr[0]}:{client_addr[1]}] Received ACK {sequence_base + 1}"
                         )
                         sequence_base += 1
                         window_size = min(
@@ -173,7 +173,7 @@ class Server:
                     )
         if reset_conn:
             self.three_way_handshake(client_addr)
-            self.send_metadata()
+            self.send_metadata(client_addr)
             self.file_transfer(client_addr)
         else:
             print(
