@@ -46,8 +46,8 @@ class Client:
             if self.segment.get_flag() == SYN_FLAG:
                 self.segment.set_flag(["SYN", "ACK"])
                 header = self.segment.get_header()
-                header["ack"] = 1
                 header["seq"] = 0
+                header["ack"] = 1
                 self.conn.send_data(self.segment.get_bytes(), server_addr)
                 print(
                     f"[!] [Server {server_addr[0]}:{server_addr[1]}] Sending SYN-ACK")
