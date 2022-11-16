@@ -1,4 +1,5 @@
 from socket import timeout as socket_timeout
+import time
 
 from lib.argparse import Parser
 from lib.connection import Connection
@@ -32,8 +33,7 @@ class Client:
             # SYN-ACK
             data, server_addr = None, ("127.0.0.1", self.broadcast_port)
             try:
-                data, server_addr = self.conn.listen_single_segment(
-                    TIMEOUT_LISTEN)
+                data, server_addr = self.conn.listen_single_segment()
                 self.segment.set_from_bytes(data)
                 print(
                     f"[!] [Server {server_addr[0]}:{server_addr[1]}] Received SYN")
@@ -46,33 +46,30 @@ class Client:
             if self.segment.get_flag() == SYN_FLAG:
                 self.segment.set_flag(["SYN", "ACK"])
                 header = self.segment.get_header()
-                header["seq"] = 0
-                header["ack"] = 1
+                header["ack"] = header["seq"] + 1
+                header["seq"] = seq
+                seq += 1
+                print(f"[!] [Server {server_addr[0]}:{server_addr[1]}] Sending SYN-ACK")
                 self.conn.send_data(self.segment.get_bytes(), server_addr)
-                print(
-                    f"[!] [Server {server_addr[0]}:{server_addr[1]}] Sending SYN-ACK")
-                end = True
-
-        # RECV ACK
-        ack = False
-        while not ack:
-            try:
-                data, server_addr = self.conn.listen_single_segment(
-                    TIMEOUT_LISTEN)
-                ackFlag = Segment()
-                ackFlag.set_from_bytes(data)
-                if ackFlag.get_flag() == ACK_FLAG:
-                    print(
-                        f"[!] [Server {server_addr[0]}:{server_addr[1]}] Received ACK")
-                    print(
-                        f"[!] [Server {server_addr[0]}:{server_addr[1]}] Handshake established"
-                    )
-                    ack = True
-                    break
-            except socket_timeout:
-                print(
-                    f"[!] [Server {server_addr[0]}:{server_addr[1]}] [Timeout] ACK response timeout"
-                )
+                ack = False
+                while not ack:
+                  try:
+                      data, server_addr = self.conn.listen_single_segment()
+                      ackFlag = Segment()
+                      ackFlag.set_from_bytes(data)
+                      if ackFlag.get_flag() == ACK_FLAG:
+                          print(f"[!] [Server {server_addr[0]}:{server_addr[1]}] Recieved ACK")
+                          print(
+                              f"[!] [Server {server_addr[0]}:{server_addr[1]}] Handshake established"
+                          )
+                          end = True
+                          ack = True
+                          break
+                  except socket_timeout:
+                      print(
+                          f"[!] [Server {server_addr[0]}:{server_addr[1]}] [Timeout] ACK response timeout"
+                      )
+                      self.conn.send_data(self.segment.get_bytes(), server_addr)
 
     def sendACK(self, server_addr, ackNumber):
         response = Segment()
@@ -146,6 +143,7 @@ class Client:
         finack.set_flag(["FIN", "ACK"])
         self.conn.send_data(finack.get_bytes(), server_addr)
         ack = False
+        timeout = time.time() + TIMEOUT_LISTEN
         while not ack:
             try:
                 data, server_addr = self.conn.listen_single_segment()
@@ -157,6 +155,11 @@ class Client:
                     )
                     ack = True
             except socket_timeout:
+                if (time.time() > timeout):
+                    print(
+                        f"[!] [Server {server_addr[0]}:{server_addr[1]}] [Timeout] waiting for too long, connection closed."
+                    )
+                    break
                 print(
                     f"[!] [Server {server_addr[0]}:{server_addr[1]}] [Timeout] timeout error, resending FIN ACK."
                 )

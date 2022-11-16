@@ -1,5 +1,5 @@
-import threading
 import multiprocessing
+import threading
 import time
 import os
 
@@ -9,16 +9,8 @@ from typing import Dict, List, Tuple
 
 from lib.argparse import Parser
 from lib.connection import Connection
-from lib.constant import (
-    ACK_FLAG,
-    FIN_ACK_FLAG,
-    PAYLOAD_SIZE,
-    SEGMENT_SIZE,
-    SYN_ACK_FLAG,
-    SYN_FLAG,
-    TIMEOUT_LISTEN,
-    WINDOW_SIZE,
-)
+from lib.constant import (ACK_FLAG, FIN_ACK_FLAG, PAYLOAD_SIZE, SEGMENT_SIZE,
+                          SYN_ACK_FLAG, SYN_FLAG, TIMEOUT_LISTEN, WINDOW_SIZE)
 from lib.segment import Segment
 
 
@@ -35,14 +27,14 @@ class Server:
         self.client_list: List[Tuple[int, int]] = []
         self.filename = self.get_filename()
         self.is_parallel = False
-        self.running_thread = None
         print(f"[!] Source file | {self.filename} | {self.filesize} bytes")
 
     def count_segment(self):
         return ceil(self.filesize / PAYLOAD_SIZE)
 
     def always_listen(self):
-        self.all_clients: Dict[Tuple[int, int], List[Segment]] = {}
+        self.all_clients: Dict[Tuple[str, int], List[Segment]] = {}
+        self.thread_queue = {}
         while True:
             try:
                 client = self.conn.listen_single_segment(TIMEOUT_LISTEN)
@@ -54,7 +46,8 @@ class Server:
                     new_transfer = threading.Thread(target=self.start_file_transfer, kwargs={
                                                     "client_parallel": client_address})
                     new_transfer.start()
-                else:  # connection already established
+                    self.thread_queue[new_transfer] = client_address
+                else: #connection already established
                     self.all_clients[client_address].append(client[0])
             except socket_timeout:
                 print("[!] Timeout Error for listening client. exiting")
@@ -124,8 +117,8 @@ class Server:
         num_of_segment = len(self.list_segment) + 3
         window_size = min(num_of_segment, WINDOW_SIZE + 1)
         sequence_base = 3
-
-        while sequence_base < num_of_segment:
+        reset_conn = False
+        while sequence_base < num_of_segment and not reset_conn:
             sequence_max = window_size
             for i in range(sequence_max):
                 print(
@@ -157,6 +150,11 @@ class Server:
                         print(
                             f"[!] [Client {client_addr[0]}:{client_addr[1]}] Received ACK from wrong client"
                         )
+                    elif segment.get_flag() == SYN_ACK_FLAG:
+                        print(
+                            f"[!] [Client {client_addr[0]}:{client_addr[1]}] Recieved SYN-ACK, resetting connection"
+                        )
+                        reset_conn = True
                     elif segment.get_flag() != ACK_FLAG:
                         print(
                             f"[!] [Client {client_addr[0]}:{client_addr[1]}] Received wrong flag"
@@ -169,56 +167,61 @@ class Server:
                         sequence_max = (
                             sequence_max - sequence_base) + request_number
                         sequence_base = request_number
-                except socket_timeout:
+                except:
                     print(
                         f"[!] [Client {client_addr[0]}:{client_addr[1]}] [Timeout] ACK response timeout, resending prev seq num"
                     )
-        print(
-            f"[!] [Client {client_addr[0]}:{client_addr[1]}] File transfer complete, sending FIN..."
-        )
-        sendFIN = Segment()
-        sendFIN.set_flag(["FIN"])
-        self.conn.send_data(sendFIN.get_bytes(), client_addr)
-        is_ack = False
+        if reset_conn:
+            self.three_way_handshake(client_addr)
+            self.send_metadata()
+            self.file_transfer(client_addr)
+        else:
+            print(
+                f"[!] [Client {client_addr[0]}:{client_addr[1]}] File transfer complete, sending FIN..."
+            )
+            sendFIN = Segment()
+            sendFIN.set_flag(["FIN"])
+            self.conn.send_data(sendFIN.get_bytes(), client_addr)
+            is_ack = False
 
-        # Wait for ack
-        while not is_ack:
-            try:
-                data, response_addr = self.get_answer(client_addr)
-                segment = Segment()
-                segment.set_from_bytes(data)
-                if (
-                    client_addr[1] == response_addr[1]
-                    and segment.get_flag() == FIN_ACK_FLAG
-                ):
+            # Wait for ack
+            while not is_ack:
+                try:
+                    data, response_addr = self.get_answer(client_addr)
+                    segment = Segment()
+                    segment.set_from_bytes(data)
+                    if (
+                        client_addr[1] == response_addr[1]
+                        and segment.get_flag() == FIN_ACK_FLAG
+                    ):
+                        print(
+                            f"[!] [Client {client_addr[0]}:{client_addr[1]}] Recieved FIN-ACK"
+                        )
+                        sequence_base += 1
+                        is_ack = True
+                        if(self.is_parallel):
+                            self.all_clients.pop(client_addr)
+                            thread_del = [k for k, v in self.thread_queue.items() if v == client_addr][0]
+                except socket_timeout:
                     print(
-                        f"[!] [Client {client_addr[0]}:{client_addr[1]}] Received FIN-ACK"
+                        f"[!] [Client {client_addr[0]}:{client_addr[1]}] [Timeout] ACK response timeout, resending FIN"
                     )
-                    sequence_base += 1
-                    is_ack = True
-                    if (self.is_parallel):
-                        self.all_clients.pop(client_addr)
-            except socket_timeout:
-                print(
-                    f"[!] [Client {client_addr[0]}:{client_addr[1]}] [Timeout] ACK response timeout, resending FIN"
-                )
-                self.conn.send_data(sendFIN.get_bytes(), client_addr)
+                    self.conn.send_data(sendFIN.get_bytes(), client_addr)
 
-        # send ACK and tear down connection
-        print(
-            f"[!] [Client {client_addr[0]}:{client_addr[1]}] Sending ACK Tearing down connection."
-        )
-        segmentACK = Segment()
-        segmentACK.set_flag(["ACK"])
-        self.conn.send_data(segmentACK.get_bytes(), client_addr)
-
+            # send ACK and tear down connection
+            print(
+                f"[!] [Client {client_addr[0]}:{client_addr[1]}] Sending ACK Tearing down connection."
+            )
+            segmentACK = Segment()
+            segmentACK.set_flag(["ACK"])
+            self.conn.send_data(segmentACK.get_bytes(), client_addr)
     def get_answer(self, client_addr: Tuple[str, int]):
         if (self.is_parallel):
-            time_timeout = time.time() + TIMEOUT_LISTEN
+            time_timeout = time.time() + 1
             while (time.time() < time_timeout):
                 if len(self.all_clients[client_addr]) > 1:
                     return (self.all_clients[client_addr].pop(1), client_addr)
-            return socket_timeout
+            raise socket_timeout
         else:
             return self.conn.listen_single_segment()
 
@@ -345,4 +348,3 @@ if __name__ == "__main__":
     main.listen_for_clients()
     if not main.is_parallel:
         main.start_file_transfer()
-    main.shutdown()
