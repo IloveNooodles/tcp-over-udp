@@ -214,8 +214,8 @@ class Server:
         if (self.is_parallel):
             time_timeout = time.time() + 1
             while (time.time() < time_timeout):
-              if len(self.all_clients[client_addr]) > 1:
-                return (self.all_clients[client_addr].pop(1), client_addr)
+                if len(self.all_clients[client_addr]) > 1:
+                    return (self.all_clients[client_addr].pop(1), client_addr)
             raise socket_timeout
         else:
             return self.conn.listen_single_segment()
