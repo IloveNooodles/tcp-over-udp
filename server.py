@@ -148,22 +148,22 @@ class Server:
                         and segment.get_header()["ack"] == sequence_base
                     ):
                         print(
-                            f"[!] [Client {client_addr[0]}:{client_addr[1]}] received ACK {sequence_base}"
+                            f"[!] [Client {client_addr[0]}:{client_addr[1]}] Received ACK {sequence_base}"
                         )
                         sequence_base += 1
                         window_size = min(
                             num_of_segment - sequence_base, WINDOW_SIZE)
                     elif client_addr[1] != response_addr[1]:
                         print(
-                            f"[!] [Client {client_addr[0]}:{client_addr[1]}] received ACK from wrong client"
+                            f"[!] [Client {client_addr[0]}:{client_addr[1]}] Received ACK from wrong client"
                         )
                     elif segment.get_flag() != ACK_FLAG:
                         print(
-                            f"[!] [Client {client_addr[0]}:{client_addr[1]}] received wrong flag"
+                            f"[!] [Client {client_addr[0]}:{client_addr[1]}] Received wrong flag"
                         )
                     else:
                         print(
-                            f"[!] [Client {client_addr[0]}:{client_addr[1]}] received Wrong ACK"
+                            f"[!] [Client {client_addr[0]}:{client_addr[1]}] Received Wrong ACK"
                         )
                         request_number = segment.get_header()["ack"]
                         sequence_max = (
@@ -192,7 +192,7 @@ class Server:
                     and segment.get_flag() == FIN_ACK_FLAG
                 ):
                     print(
-                        f"[!] [Client {client_addr[0]}:{client_addr[1]}] received FIN-ACK"
+                        f"[!] [Client {client_addr[0]}:{client_addr[1]}] Received FIN-ACK"
                     )
                     sequence_base += 1
                     is_ack = True
