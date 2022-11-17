@@ -106,10 +106,10 @@ class Client:
                             f"[!] [Server {server_addr[0]}:{server_addr[1]}] Received Segment {request_number}"
                         )
                         print(
-                            f"[!] [Server {server_addr[0]}:{server_addr[1]}] Sending ACK {request_number + 1}"
+                            f"[!] [Server {server_addr[0]}:{server_addr[1]}] Sending ACK {request_number}"
                         )
-                        request_number += 1
                         self.sendACK(server_addr, request_number)
+                        request_number += 1
                         continue
                     elif self.segment.get_flag() == FIN_FLAG:
                         print(

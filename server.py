@@ -81,11 +81,9 @@ class Server:
         if not self.is_parallel:
             for client in self.client_list:
                 self.three_way_handshake(client)
-                # self.send_metadata(client)
                 self.file_transfer(client)
         else:
             self.three_way_handshake(client_parallel)
-            # self.send_metadata(client_parallel)
             self.file_transfer(client_parallel)
 
     def breakdown_file(self):
@@ -146,10 +144,10 @@ class Server:
                     if (
                         client_addr[1] == response_addr[1]
                         and segment.get_flag() == ACK_FLAG
-                        and segment.get_header()["ack"] == sequence_base + 1
+                        and segment.get_header()["ack"] == sequence_base
                     ):
                         print(
-                            f"[!] [Client {client_addr[0]}:{client_addr[1]}] Received ACK {sequence_base + 1}"
+                            f"[!] [Client {client_addr[0]}:{client_addr[1]}] Received ACK {sequence_base}"
                         )
                         sequence_base += 1
                         window_size = min(
@@ -178,7 +176,6 @@ class Server:
                     )
         if reset_conn:
             self.three_way_handshake(client_addr)
-            self.send_metadata(client_addr)
             self.file_transfer(client_addr)
         else:
             print(
@@ -317,12 +314,12 @@ class Server:
 
     def prompt_parallelization(self):
         choice = input(
-            "[?] Do you want to enable paralelization for the server? (y/n)"
+            "[?] Do you want to enable paralelization for the server? (y/n) "
         ).lower()
         while not self.choice_valid(choice):
             print("[!] Please input correct input")
             choice = input(
-                "[?] Do you want to enable paralelization for the server? (y/n)"
+                "[?] Do you want to enable paralelization for the server? (y/n) "
             ).lower()
 
         if choice == "y":
