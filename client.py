@@ -180,40 +180,6 @@ class Client:
             f"[!] [Server {server_addr[0]}:{server_addr[1]}] Writing file to out/{self.pathfile_output}"
         )
 
-    def listen_metadata_transfer(self):
-        request_number = 2
-        data, server_addr = None, None
-        try:
-            data, server_addr = self.conn.listen_single_segment(5)
-            if server_addr[1] == self.broadcast_port:
-                self.segment.set_from_bytes(data)
-                if (
-                    self.segment.valid_checksum()
-                    and self.segment.get_header()["seq"] == request_number
-                ):
-                    payload = self.segment.get_payload()
-                    metadata = payload.decode().split(",")
-                    print(
-                        f"[!] [Server {server_addr[0]}:{server_addr[1]}] Received Filename: {metadata[0]}, File Extension: {metadata[1]}, File Size: {metadata[2]}"
-                    )
-                else:
-                    print(
-                        f"[!] [Server {server_addr[0]}:{server_addr[1]}] Received Segment {self.segment.get_header()['seq']} [Not a Metadata]")
-                    print(
-                        f"[!] [Server {server_addr[0]}:{server_addr[1]}] Force listening file transfer")
-            else:
-                print(
-                    f"[!] [Server {server_addr[0]}:{server_addr[1]}] Received Segment {self.segment.get_header()['seq']} [Wrong port]"
-                )
-                print(
-                    f"[!] [Server {server_addr[0]}:{server_addr[1]}] Force listening file transfer")
-        except socket_timeout:
-            print(
-                f"[!] [Server {'127.0.0.1':{self.broadcast_port}}] [Timeout] timeout error, resending prev seq num"
-            )
-            print(
-                f"[!] [Server {'127.0.0.1':{self.broadcast_port}}] Force listening file transfer")
-
     def create_file(self):
         try:
             file = open(f"out/{self.pathfile_output}", "wb")
@@ -231,6 +197,5 @@ if __name__ == "__main__":
     main = Client()
     main.connect()
     main.three_way_handshake()
-    # main.listen_metadata_transfer()
     main.listen_file_transfer()
     main.shutdown()

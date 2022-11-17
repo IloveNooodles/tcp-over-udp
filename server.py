@@ -1,4 +1,3 @@
-import multiprocessing
 import threading
 import time
 import os
@@ -328,22 +327,6 @@ class Server:
 
         if choice == "y":
             self.is_parallel = True
-
-    def send_metadata(self, client_addr: Tuple[str, int]):
-        self.metadata_segment = Segment()
-        filename = self.get_name_part()
-        extension = self.get_extension_part()
-        filesize = self.filesize
-        metadata = filename.encode() + ",".encode() + extension.encode() + \
-            ",".encode() + str(filesize).encode()
-        self.metadata_segment.set_payload(metadata)
-        header = self.metadata_segment.get_header()
-        header["seq"] = 2
-        header["ack"] = 0
-        self.metadata_segment.set_header(header)
-        print(
-            f"[!] [Client {client_addr[0]}:{client_addr[1]}] Sending metadata")
-        self.conn.send_data(self.metadata_segment.get_bytes(), client_addr)
 
     def shutdown(self):
         self.file.close()
