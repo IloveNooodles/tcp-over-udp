@@ -1,5 +1,4 @@
 import socket
-from time import time
 from typing import Tuple
 
 from .constant import (
