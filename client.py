@@ -31,7 +31,7 @@ class Client:
         while True:
             data, server_addr = None, ("127.0.0.1", self.broadcast_port)
             try:
-                data, server_addr = self.conn.listen_single_segment()
+                data, server_addr = self.conn.listen_single_segment(TIMEOUT_LISTEN)
                 self.segment.set_from_bytes(data)
                 if self.segment.get_flag() == SYN_FLAG:
                     self.segment.set_flag(["SYN", "ACK"])
@@ -56,11 +56,11 @@ class Client:
                     print(
                         f"[!] [Server {server_addr[0]}:{server_addr[1]}] [Timeout] ACK response timeout"
                     )
+                    self.conn.send_data(self.segment.get_bytes(), server_addr)
                 else:
                     print(
                     f"[!] [Server {server_addr[0]}:{server_addr[1]}] [Timeout] SYN response timeout"
-                    )
-                self.conn.send_data(self.segment.get_bytes(), server_addr)
+                    )         
 
     def sendACK(self, server_addr, ackNumber):
         response = Segment()
@@ -182,11 +182,12 @@ class Client:
                 else:
                     print(
                         f"[!] [Server {server_addr[0]}:{server_addr[1]}] Received Segment {self.segment.get_header()['seq']} [Not a Metadata]")
+                    print(f"[!] [Server {server_addr[0]}:{server_addr[1]}] Force listening file transfer")
             else:
                 print(
                     f"[!] [Server {server_addr[0]}:{server_addr[1]}] Received Segment {self.segment.get_header()['seq']} [Wrong port]"
                 )
-            print(f"[!] [Server {server_addr[0]}:{server_addr[1]}] Force listening file transfer")
+                print(f"[!] [Server {server_addr[0]}:{server_addr[1]}] Force listening file transfer")
         except socket_timeout:
             print(
                 f"[!] [Server {'127.0.0.1':{self.broadcast_port}}] [Timeout] timeout error, resending prev seq num"
