@@ -54,8 +54,7 @@ class Client:
                     )
                     break
                 else:
-                    print(
-                        f"[!] [Server {server_addr[0]}:{server_addr[1]}] Segment File Received, Resetting Connection")
+                    print(f"[!] [Server {server_addr[0]}:{server_addr[1]}] Segment File Received, Resetting Connection")
                     self.segment.set_flag(["SYN", "ACK"])
                     header = self.segment.get_header()
                     header["ack"] = 1
