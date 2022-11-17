@@ -84,6 +84,7 @@ class Client:
 
     def listen_file_transfer(self):
         metadata_number = 2
+        metadata_received = False
         request_number = 3
         data, server_addr = None, None
         while True:
@@ -94,12 +95,14 @@ class Client:
                     if (
                             self.segment.valid_checksum()
                             and self.segment.get_header()["seq"] == metadata_number
+                            and metada_received == False
                     ):
                         payload = self.segment.get_payload()
                         metadata = payload.decode().split(",")
                         print(
                             f"[!] [Server {server_addr[0]}:{server_addr[1]}] Received Filename: {metadata[0]}, File Extension: {metadata[1]}, File Size: {metadata[2]}"
                         )
+                        metadata_received = True
                         self.sendACK(server_addr, metadata_number)
                         continue
                     elif (
@@ -112,10 +115,10 @@ class Client:
                             f"[!] [Server {server_addr[0]}:{server_addr[1]}] Received Segment {request_number}"
                         )
                         print(
-                            f"[!] [Server {server_addr[0]}:{server_addr[1]}] Sending ACK {request_number}"
+                            f"[!] [Server {server_addr[0]}:{server_addr[1]}] Sending ACK {request_number + 1}"
                         )
-                        self.sendACK(server_addr, request_number)
                         request_number += 1
+                        self.sendACK(server_addr, request_number)
                         continue
                     elif self.segment.get_flag() == FIN_FLAG:
                         print(
