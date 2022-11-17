@@ -1,7 +1,3 @@
-# Kit IF3130 - Jaringan Komputer 2022
-
-Repository template tugas besar 2 - IF3130 - Jaringan Komputer - 2022
-
 # TCP Over UDP
 
 This repository contains how to simulate TCP connection over UDP socket. It consist of simple server and client, server can send file to a or multiple client. There are no non builtin library are used for this implementation.
