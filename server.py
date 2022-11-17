@@ -45,7 +45,7 @@ class Server:
                     new_transfer = threading.Thread(target=self.start_file_transfer, kwargs={
                                                     "client_parallel": client_address})
                     new_transfer.start()
-                else: #connection already established
+                else:  # connection already established
                     self.all_clients[client_address].append(client[0])
             except socket_timeout:
                 print("[!] Timeout Error for listening client. exiting")
@@ -81,15 +81,28 @@ class Server:
         if not self.is_parallel:
             for client in self.client_list:
                 self.three_way_handshake(client)
-                self.send_metadata(client)
                 self.file_transfer(client)
         else:
             self.three_way_handshake(client_parallel)
-            self.send_metadata(client_parallel)
             self.file_transfer(client_parallel)
 
     def breakdown_file(self):
         self.list_segment: List[Segment] = []
+
+        metadata_segment = Segment()
+        filename = self.get_name_part()
+        extension = self.get_extension_part()
+        filesize = self.filesize
+        metadata = filename.encode() + ",".encode() + extension.encode() + \
+            ",".encode() + str(filesize).encode()
+        metadata_segment.set_payload(metadata)
+        header = metadata_segment.get_header()
+        header["seq"] = 2
+        header["ack"] = 0
+        metadata_segment.set_header(header)
+        self.list_segment.append(metadata_segment)
+        
+
         num_of_segment = self.count_segment()
         # After three way handshake seq num is now 1
         # Flags is 0 for sending data
@@ -108,9 +121,9 @@ class Server:
         # Sequence number 0 for SYN
         # Sequence number 1 for ACK
         # Sequence number 2 for Metadata
-        num_of_segment = len(self.list_segment) + 3
-        window_size = min(num_of_segment, WINDOW_SIZE)
-        sequence_base = 3
+        num_of_segment = len(self.list_segment) + 2
+        window_size = min(num_of_segment - 2, WINDOW_SIZE)
+        sequence_base = 2
         reset_conn = False
         while sequence_base < num_of_segment and not reset_conn:
             sequence_max = window_size
@@ -121,7 +134,7 @@ class Server:
                 if i + sequence_base < num_of_segment:
                     self.conn.send_data(
                         self.list_segment[i + sequence_base -
-                                          3].get_bytes(), client_addr
+                                          2].get_bytes(), client_addr
                     )
             for i in range(sequence_max):
                 try:
@@ -159,16 +172,16 @@ class Server:
                             f"[!] [Client {client_addr[0]}:{client_addr[1]}] Received Wrong ACK"
                         )
                         request_number = segment.get_header()["ack"]
-                        sequence_max = (
-                            sequence_max - sequence_base) + request_number
-                        sequence_base = request_number
+                        if (request_number > sequence_base):
+                          sequence_max = (
+                              sequence_max - sequence_base) + request_number
+                          sequence_base = request_number
                 except:
                     print(
                         f"[!] [Client {client_addr[0]}:{client_addr[1]}] [Timeout] ACK response timeout, resending prev seq num"
                     )
         if reset_conn:
             self.three_way_handshake(client_addr)
-            self.send_metadata(client_addr)
             self.file_transfer(client_addr)
         else:
             print(
@@ -194,7 +207,7 @@ class Server:
                         )
                         sequence_base += 1
                         is_ack = True
-                        if(self.is_parallel):
+                        if (self.is_parallel):
                             self.all_clients.pop(client_addr)
                 except socket_timeout:
                     print(
@@ -312,31 +325,16 @@ class Server:
 
     def prompt_parallelization(self):
         choice = input(
-            "[?] Do you want to enable paralelization for the server? (y/n)"
+            "[?] Do you want to enable paralelization for the server? (y/n) "
         ).lower()
         while not self.choice_valid(choice):
             print("[!] Please input correct input")
             choice = input(
-                "[?] Do you want to enable paralelization for the server? (y/n)"
+                "[?] Do you want to enable paralelization for the server? (y/n) "
             ).lower()
 
         if choice == "y":
             self.is_parallel = True
-
-    def send_metadata(self, client_addr: Tuple[str, int]):
-        self.metadata_segment = Segment()
-        filename = self.get_name_part()
-        extension = self.get_extension_part()
-        filesize = self.filesize
-        metadata = filename.encode() + ",".encode() + extension.encode() + \
-            ",".encode() + str(filesize).encode()
-        self.metadata_segment.set_payload(metadata)
-        header = self.metadata_segment.get_header()
-        header["seq"] = 2
-        header["ack"] = 0
-        self.metadata_segment.set_header(header)
-        print(f"[!] [Client {client_addr[0]}:{client_addr[1]}] Sending metadata")
-        self.conn.send_data(self.metadata_segment.get_bytes(), client_addr)
 
     def shutdown(self):
         self.file.close()
