@@ -55,7 +55,13 @@ class Client:
                     break
                 else:
                     print(
-                        f"[!] [Server {server_addr[0]}:{server_addr[1]}] Segment Received before Connection, resetting connection")
+                        f"[!] [Server {server_addr[0]}:{server_addr[1]}] Segment File Received, Resetting Connection")
+                    self.segment.set_flag(["SYN", "ACK"])
+                    header = self.segment.get_header()
+                    header["ack"] = 1
+                    header["seq"] = 0
+                    print(f"[!] [Server {server_addr[0]}:{server_addr[1]}] Sending SYN-ACK")
+                    self.conn.send_data(self.segment.get_bytes(), server_addr)
             except socket_timeout:
                 if (self.segment.get_flag() == SYN_ACK_FLAG):
                     print(
