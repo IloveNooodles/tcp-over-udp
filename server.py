@@ -1,4 +1,3 @@
-import multiprocessing
 import threading
 import time
 import os
@@ -145,12 +144,16 @@ class Server:
                         print(
                             f"[!] [Client {client_addr[0]}:{client_addr[1]}] Received ACK from wrong client"
                         )
-                    elif segment.get_flag() != ACK_FLAG:
+                    elif segment.get_flag() == SYN_ACK_FLAG:
                         print(
-                            f"[!] [Client {client_addr[0]}:{client_addr[1]}] Recieved Wrong Flag, resetting connection"
+                            f"[!] [Client {client_addr[0]}:{client_addr[1]}] Recieved SYN ACK Flag, client ask to reset connection"
                         )
                         reset_conn = True
-
+                        break
+                    elif segment.get_flag() != ACK_FLAG:
+                        print(
+                          f"[!] [Client {client_addr[0]}:{client_addr[1]}] Recieved Wrong Flag"
+                        )
                     else:
                         print(
                             f"[!] [Client {client_addr[0]}:{client_addr[1]}] Received Wrong ACK"
@@ -254,6 +257,11 @@ class Server:
                 self.segment.set_header(header)
                 self.segment.set_flag(["ACK"])
                 self.conn.send_data(self.segment.get_bytes(), client_addr)
+                break
+            else:
+                print(
+                  f"[!] [Client {client_addr[0]}:{client_addr[1]}] Client already waiting file data, ending Three Way Handshake"
+                )
                 break
         print(
             f"[!] [Client {client_addr[0]}:{client_addr[1]}] Handshake established")
