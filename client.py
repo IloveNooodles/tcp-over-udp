@@ -1,11 +1,10 @@
-from socket import timeout as socket_timeout
 import time
+from socket import timeout as socket_timeout
 
 from lib.argparse import Parser
 from lib.connection import Connection
-from lib.constant import (
-    ACK_FLAG, FIN_FLAG, SYN_ACK_FLAG, SYN_FLAG, TIMEOUT_LISTEN
-)
+from lib.constant import (ACK_FLAG, FIN_FLAG, SYN_ACK_FLAG, SYN_FLAG,
+                          TIMEOUT_LISTEN)
 from lib.segment import Segment
 
 
@@ -94,7 +93,7 @@ class Client:
                     if (
                             self.segment.valid_checksum()
                             and self.segment.get_header()["seq"] == metadata_number
-                            and metada_received == False
+                            and metadata_received == False
                     ):
                         payload = self.segment.get_payload()
                         metadata = payload.decode().split(",")
