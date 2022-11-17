@@ -14,7 +14,7 @@ class SegmentFlag:
     def get_flag_bytes(self) -> bytes:
         # Convert this object to flag in byte form
         return struct.pack("B", self.syn | self.ack | self.fin)
-    
+
     def get_flag(self) -> int:
         return self.syn | self.ack | self.fin
 

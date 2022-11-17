@@ -3,10 +3,10 @@ import binascii
 from .constant import CRC_INIT, CRC_POLYNOM
 
 """
-CRC16 Polynomial 
+CRC16 Polynomial
 x16 + x12 + x5  + 1
 1 0001 0000 0010 0001 & 0xFFFF
-0x 1    0    2    1 
+0x 1    0    2    1
 0x1021
 """
 
